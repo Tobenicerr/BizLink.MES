@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<Shell
+    x:Class="BizLink.MES.MAUI.AppShell"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:local="clr-namespace:BizLink.MES.MAUI.View"
+    Shell.FlyoutBehavior="Disabled"
+    Title="BizLink.MES.MAUI">
+
+    <!--<ShellContent
+        Title="Home"
+        ContentTemplate="{DataTemplate local:MainPage}"
+        Route="MainPage" />-->
+
+    <!-- 【在这里添加您的新页面】 -->
+    <ShellContent
+            Title="物料移库1"
+        ContentTemplate="{DataTemplate local:StockTransferPage}"
+            Route="StockTransferPage" />
+</Shell>

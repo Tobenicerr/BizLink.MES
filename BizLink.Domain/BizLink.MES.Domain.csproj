@@ -1,0 +1,46 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <PlatformTarget>AnyCPU</PlatformTarget>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Folder Include="Exceptions\" />
+    <Folder Include="Models\" />
+	<PackageReference Include="SqlSugarCore" Version="5.1.4.205" />
+  </ItemGroup>
+
+	<!-- 明确把原生 DLL 复制到输出根（避免被放到子目录或未复制） -->
+	<ItemGroup>
+	  <Reference Include="sapnco">
+	    <HintPath>..\libs\sapnco_x64\sapnco.dll</HintPath>
+	  </Reference>
+	  <Reference Include="sapnco_utils">
+	    <HintPath>..\libs\sapnco_x64\sapnco_utils.dll</HintPath>
+	  </Reference>
+	</ItemGroup>
+
+	<ItemGroup>
+		<None Include="..\libs\sapnco_x64\cpc4n.dll">
+			<Link>cpc4n.dll</Link>
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</None>
+		<None Include="..\libs\sapnco_x64\ijwhost.dll">
+			<Link>ijwhost.dll</Link>
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</None>
+		<None Include="..\libs\sapnco_x64\Microsoft.Win32.Registry.dll">
+			<Link>Microsoft.Win32.Registry.dll</Link>
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</None>
+		<!--<None Include="..\libs\sapnco_x64\System.Configuration.ConfigurationManager.dll">
+			<Link>System.Configuration.ConfigurationManager.dll</Link>
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</None>-->
+	</ItemGroup>
+
+
+</Project>

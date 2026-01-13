@@ -1,0 +1,29 @@
+SAP Connector for Microsoft .NET 3.1 (aka NCo 3.1)
+
+General information
+-------------------
+NCo 3.1 for .NET (core) requires a .NET (core) runtime 8.
+Please see SAP note 3152653 (https://me.sap.com/notes/3152653) for a current and detailed list of
+supported platforms and .NET (core) runtimes. The latest version of NCo 3.1 can be downloaded from
+the SAP Support Portal at https://support.sap.com/nco. There you will also find all available 
+distribution packages for the various supported processors as well as the NCo 3.1 Documentation in
+PDF format.
+
+Installation at development time
+--------------------------------
+For installation simply unzip the archive of NCo for .NET (core) to an arbitrary directory on your
+machine. To integrate NCo into your .NET (core) application, you need to reference the provided
+files in your Visual Studio project. You can add these assembly libraries via "Add COM References".
+Please note that the shared library ijwhost.dll cannot be directly added as a reference in the
+project. Instead, this DLL should be copied directly into the same directory as the build results
+of your application.
+
+Installation at runtime
+-----------------------
+For installation simply unzip the archive of NCo for .NET (core) to the directory on your machine, 
+in which your NCo application has been deployed. Assuming that the .NET (core) runtime has been 
+properly installed as shared runtime, you can find all available installations using the command
+dotnet --list-runtimes. 
+In order to start your application, you need a command similar to the following to ensure using
+the shared runtime: 
+dotnet --fx-version 8.0.6 D:\apps\nco\myNCoApp.dll 

@@ -1,0 +1,358 @@
+Release Notes for SAP .NET Connector 3.1 (NCo 3.1)
+==================================================
+
+Please read the license terms and release notes carefully.
+
+-----------------------------------------------------------------------------------------
+
+This product is property of SAP SE. You are granted usage of this product in your
+development environment. Deploying this product with your application in a production
+environment is only valid with the sufficient amount of SAP Software Licenses according
+to the terms and conditions of the respective SAP Solution or SAP Component Software
+License Agreement. Any copying, reproduction, or redistribution of SAP Software not in
+accordance with the License Agreement is expressly prohibited. You must not modify, 
+decompile, or reverse engineer any SAP Software, except to the extent expressly 
+permitted by applicable law. 
+
+THIS SOFTWARE IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS
+FOR A PARTICULAR PURPOSE, OR NON-INFRINGEMENT.
+SAP SE further does not warrant the accuracy or completeness of the information, text,
+graphics, links, or other items contained within these materials. SAP SE shall not be
+liable for any special, indirect, incidental, or consequential damages, including without
+limitation, lost revenues, or lost profits, which may result from the use of these
+materials. The information in this software is subject to change without notice and does
+not represent a commitment on the part of SAP SE in the future.
+
+-----------------------------------------------------------------------------------------
+
+Release Notes NCo 3.1.6
+
+* Bugfix: CPIC server runtime
+  CPIC-based RfcServer connections could have ended up in a hanging state when receiving
+  incoming RFC request data from an SAP gateway. Affected CPIC RFC server connections
+  were then permanently blocked and could only be freed by closing them through stopping
+  the owning RfcServer instance. No error was logged at RFC server side, but at the
+  calling partner side respective RFC requests remained in executing state forever.
+  The error situation occurred sporadically when an incoming network ping packet could
+  have interfered with a simultaneously received RFC request data packet on the same
+  connection or when an RfcServer was set to stateful and a network ping package was
+  received in between 2 calls.
+  Note: This was a regression bug which had been introduced with NCo 3.1.5. 
+
+* Bugfix: Registered server handling
+  When trying to shutdown a server that was just finishing the processing of a function
+  module, it could happen that the full server was crashing with a call stack similar to 
+  Fatal error. System.AccessViolationException: Attempted to read or write protected memory. This is often an indication that other memory is corrupt.
+  Repeat 2 times:
+  --------------------------------
+     at <Module>.SAP_CMUNREGTP3(Int32, Int32*)
+  --------------------------------
+     at SAP.Middleware.Connector.CpicConnection.Close()
+     at SAP.Middleware.Connector.CpicDriver.Close()
+     at SAP.Middleware.Connector.RfcConnection.Close()
+     at SAP.Middleware.Connector.RfcConnection.Cancel()
+     at SAP.Middleware.Connector.CpicServer.Shutdown(Boolean)
+  This was due to a concurrent attempt to prepare the server for receiving the next request.
+
+* Bugfix: connection and session management
+  In case NCo is used in networks with regular issues, and when using stateful connections to an ABAP backend via
+  RfcSessionManager.BeginContext regularly in the same session, a NullReferenceException occurred if the 
+  connection could not be established successfully, RfcSessionManager.EndContext was not invoked and afterwards
+  it was tried again to start a stateful sequence with RfcSessionManager.BeginContext in the same session for the
+  same destination.
+  The NullReferenceException occurred with a callstack similar to the one below: 
+  System.NullReferenceException: Object reference not set to an instance of an object.
+    at SAP.Middleware.Connector.RfcConnection.ResetRfcIOBuffer(Boolean forRead)
+    at SAP.Middleware.Connector.RfcFunction.RfcSerialize(RfcConnection conn, IRfcIOStream stream, RFCID rid)
+    at SAP.Middleware.Connector.RfcFunction.RfcCallReceive(RfcConnection conn, RFCID rid)
+    at SAP.Middleware.Connector.RfcFunction.Invoke(RfcDestination destination)
+
+* Bugfix: RfcDestinationManager
+  Under very high load it could happen that RfcDestinationManager.GetDestination(RfcConfigParameters)
+  does not return. This is visible when turning on traces for at least public APIs. Root cause is
+  a "classic" deadlock, which has now been fixed. Actually, it is a situation similar to the
+  fix in 3.1.5 done for the deadlock in the other GetDestination() API. 
+
+* Bugfix: Optional parameter handling
+  When setting empty or null values for an optional parameter, the value was not considered as
+  set. As a consequence, the parameter with the initial type value was not sent to the ABAP
+  system, which then used the default value associated with the parameter when executing the
+  function module. This could lead to unexpected results of the function module.
+  Note: This was a regression in 3.1.5.
+  
+* Bugfix: RfcServerContext
+  The repository in the RfcServerContext was always null if the repository was defined by the
+  configuration via the REPOSITORY_DESTINATION parameter. The repository was available only,
+  if the repository was set via API to the RfcServer.
+
+* Enhancement: PasswordChangeHandler
+  When setting rfc/reject_expired_passwd in the ABAP system to 1, it is not possible to logon
+  with expired passwords. As a consequence, the SystemAttributes are to a large degree filled
+  with initial values, including the user information. In particular, applications might rely
+  on that user information in their implementation for a PasswordChangeHandler
+
+* Enhancement: WebSocket RFC client
+  It is now possible to configure WsAppServerInstance|WS_APPSERVER_INSTANCE for WebSocket RFC
+  client connections, which is helpful in support situations. Check the API documentation
+  for details.
+
+* Enhancement: Support for new OS version
+  With NCo 3.1.6 Microsoft Windows Server 2025 is supported. See SAP note 
+  https://me.sap.com/notes/3152653 for the detailed list of supported OS versions.
+
+-----------------------------------------------------------------------------------------
+
+Release Notes NCo 3.1.5
+
+* Runtime environments: .NET (core) 8.0  
+  Initial release for the .NET (core) runtime. The only supported version is initially 
+  .NET 8.0
+
+* Bugfix: empty/initial columns in received TABLES parameter data
+  If a remote-enabled function module (RFM) has multiple TABLES parameters, it could have
+  happened that the content of one or more received RfcTable objects was incorrect, and
+  all rows of affected tables were only partly filled. In this case, each row was
+  populated with data only up to a certain column and following fields were empty or 
+  contained their type-specific initial value. The full content of the first TABLES
+  parameter was always correct. This program error occurred under special complex
+  preconditions, for which the affected TABLES parameters needed to have a certain layout
+  structure of field types and the affected table content was transferred in compressed
+  row-based serialization format.
+  Note: This was a regression bug which had been introduced with NCo 3.1.4. 
+
+* Bugfix: RfcDestinationManager
+  Under very high load it could happen that RfcDestinationManager.GetDestination(String)
+  does not return. This is visible when turning on traces for at least public APIs. Root
+  cause is a "classic" deadlock, which has now been fixed. 
+
+* Bugfix: connection management
+  In high load scenarios, a race condition could occur which leads to log entries similar
+  to the following one: 
+  Error entry 2025-03-13 10:05:59.020 [Thread 101]
+  SAP.Middleware.Connector.RfcCommunicationCanceledException: client call cancelled before initiating serialization
+    at SAP.Middleware.Connector.RfcFunction.RfcCallReceive(RfcConnection conn, RFCID rid)
+    at SAP.Middleware.Connector.RfcDestination.ConfirmTransactionID(RfcTID tid)
+
+* Enhancement: Data handling
+  Additional useful automatic type conversions have been added to the data container
+  getters and setters. Check the API documentation for details.
+
+-----------------------------------------------------------------------------------------
+
+Release Notes NCo 3.1.4
+
+* Bugfix: rsp4n.dll lazy loading
+  rscp4n.dll is required only when using USE_SAP_CODEPAGES in a destination configuration.
+  Therefore it is only loaded lazily. It could happen that lazy loading of rscp4n.dll did
+  not work, when the assembly was used from GAC, which is the standard case for NCo 3.1.
+  The method implementing the load procedure was fixed to consider the GAC in all cases.  
+
+* Bugfix: Connections with attached SAP GUI 
+  If a SAP GUI shall be started and attached to an RFC connection via logon parameter
+  USE_SAPGUI set to 1 or 2, this could have failed with error message "Communication with 
+  SAPGUI timed out" depending on the stored value for Windows registry key StartSaplogon
+  defining SAP GUI's startup mode. This bug was caused by different default values being
+  used in case of a missing registry key entry, and due to different precedence
+  implementations with regards to the key's location. SAP GUI uses "1" as default value 
+  and gives section HKLM precedence over section HKCU, while NCo used default value "0" 
+  and gave precedence to section HKCU.
+  
+* Bugfix: table parameter data 
+  If NCo received a table parameter with table metadata that has been extended compared to the 
+  one that is used in the ABAP code when sending the data and alignment bytes are appended 
+  at the end of a row the first field in the extended section could have contained garbage
+  data.
+
+* Bugfix: Metadata lookup 
+  When trying to lookup function metadata with parameter referring to a char element in a
+  structure, the returned information was not interpreted correctly. This could lead to an 
+  RfcInvalidStateException in RfcRepository.CreateFunction with a message similar to 
+  "could not find CHAR MYSTRUCT-FIELD".
+
+* Bugfix: Allowed SNC partner names
+  If SYS_IDS was an empty list for an RfcServer, because the configuration was set use SNC and 
+  SNC_PARTNER_NAMES should be used, the value for SNC_PARTNER_NAMES was not checked and thus all
+  trusted SNC partners were allowed.
+
+* Bugfix: Connection management
+  If a session is disposed, in the context of the session there are still running function module
+  calls, and there is high load for the destination to which the connection belongs to,
+  an exception with a call stack that starts as below can occur, even though the requests
+  are executed in different sessions:
+  SAP.Middleware.Connector.RfcConcurrentCallException: cannot execute a call through a busy connection
+   at SAP.Middleware.Connector.RfcFunction.RfcCallReceive(RfcConnection conn, RFCID rid)
+ 
+* Bugfix: Registered Server runtime
+  After introducing the timeout in NCo 3.1.3, it could happen if network traffic was temporarily
+  blocked or frozen, that registered CPIC-based RFC server connections could get incorrect data 
+  as packages were potentially processed in multiple threads at a time. In this case the 
+  RFC error log file dev_nco_rfc.log could show error entries similar to the following one:
+  >> Error entry 2024-03-03 03:42:42.042 [Thread 42]
+  SAP.Middleware.Connector.RfcSerializationException: End mark RFCID.??? (0x####) expected, but RFCID.??? (0x####) received
+     at SAP.Middleware.Connector.RfcConnection.ReadRfcIDEnd(RFCID expectedRid, RfcParameter& param, RfcTable& table)
+     at SAP.Middleware.Connector.RfcConnection.ReadUpTo(RFCGET readState, RfcFunction function, RFCID toRid)
+     at SAP.Middleware.Connector.RfcConnection.Dispatch()
+     at SAP.Middleware.Connector.RfcConnection.RfcServerWorkerThreadProc(Object rfcConnObj)
+  The values for #### depend on the concrete communication and can differ from case to case.
+  The reason for this misbehavior was that it could happen that the processing could end up
+  in two concurrent threads due to a misaligned behavior in CPIC layer, which has been fixed
+  as described in SAP note https://me.sap.com/notes/3436247.
+
+* Enhancement: RfcDestination.PasswordChangeHandler, RfcDestination.OnPasswordChangedHandler
+  A new delegate RfcDestination.OnPasswordChangedHandler has been introduced for signaling a
+  successful password change operation at ABAP system back-end side, thus making it easier for
+  an implementer of the delegate PasswordChangeHandler to handle own triggered user password
+  changes appropriately. In addition, the NCo runtime is now also capable to deal with mandatory
+  password change requests at logon time, for example if a user's password has expired and 
+  rfc/reject_expired_pass is set to 1. SAP note https://me.sap.com/notes/3191684 describes the
+  SAP system kernel prerequisites for this new feature.
+
+-----------------------------------------------------------------------------------------
+
+Release Notes NCo 3.1.3
+
+* Bugfix: Installer
+  When trying to update an existing installation of NCo 3.1.1, the existing assemblies
+  were not always replaced in GAC, even though the installer recognized that an upgrade is 
+  necessary
+
+* Bugfix: IServerSecurityHandler
+  When providing an AliasUser in the destination for a WebSocket Connection pointing to an NCo
+  Server, this user was not provided in the RfcSecurityData.UserName in 
+  IServerSecurityHandler.LogonCheck. Instead, the user logged on to the ABAP system and 
+  executing the function module was available, which was not correct.
+
+* Bugfix: Connections with attached SAP GUI 
+  When using a SAP GUI 8.00 installation with the newly introduced 64bit variant, and setting 
+  the connection parameter USE_SAPGUI to 1 or 2, the startup of the SAP GUI failed with 
+  "Can't find the path to SAPGUI". This was due to the fact that a registry value was searched
+  only in the 32-bit branch. Furthermore, starting the GUI could also fail with "Communication
+  with SAPGUI timed out" due to using different lock objects in SAP GUI 8.00 64bit and NCo
+  and a race condition in the startup procedure. The race condition could actually occur also
+  with (older) 32-bit variants of the SAP GUI.
+  Please note: There were also some issues fixed in SAP GUI 8.00 64bit for that scenario. Hence,
+  you must update to at least SAP GUI 8.00 patch level 3 as well, as it includes the necessary 
+  patches for 64bit to make the scenario work correctly. 
+
+* Bugfix: Registered server runtime
+  When a registered server receives the information that a request has been received, it could
+  happen in very rare cases that this notification was the only data package that was received,
+  but the real data was not, so that when the server tries to read the payload, it was hanging
+  endlessly. This has been fixed by introducing a timeout when waiting for incoming data.
+
+* Bugfix: Default IServerConfiguration implementation
+  When using the default IServerConfiguration with app.config and trying to lookup a 
+  non-existing server, an exception was thrown by that implementation instead of returning
+  null, as requested by the interface documentation. This could result in misleading behavior
+  of the RfcServerManager.
+
+* Enhancement: Data handling
+  When setting an empty string or a null value to a number field, now the initial value will
+  be set for the respective field instead of throwing a ConversionException 
+
+-----------------------------------------------------------------------------------------
+
+Release Notes NCo 3.1.2
+
+* Bugfix: Repository management
+  When trying to lookup metadata with a repository, a CommunicationException could occur
+  even though the associated destinations are fully functional. This could happen if the
+  configuration of the destination currently used for lookups has been modified recently.
+  Under certain circumstances it could happen in this case that the destination list is
+  not updated properly within the repository.
+
+* Bugfix: tRFC runtime
+  A tRFC unit containing more than one function module could not be processed properly
+  in the receiving ABAP system. It was actually simply ignored.
+
+* Bugfix: default server configuration implementation with app.config
+  In 3.1.1 it was not possible to configure a WebSocket RFC server using the app.config. 
+  When providing the WSPORT parameter, the program fails to start with 
+  RfcInvalidStateException: No ServerConfiguration defined, which is actually not true, 
+  and when checking dev_nco_rfc.log you can find there the exception below:
+  System.Configuration.ConfigurationErrorsException: Unrecognized attribute 'WSPORT'
+
+* Bugfix: Log file
+  When configuring a traceDirectory in the app.config of an NCo application, still a
+  dev_nco_rfc.log file was generated in the working directory, with either the single
+  entry that the trace file location has changed or informing about the default/minimal 
+  trace level that has been set in the app.config file.
+
+* Bugfix: SapLogonIniConfiguration
+  When trying to use SAPUILandscape.xml as basis for destination configurations on a system 
+  with a 64-bit SAP GUI installation, NCo was raising an exception similar to
+  SAP.Middleware.Connector.RfcInvalidStateException: Unable to find saplogon file
+    at SAP.Middleware.Connector.SapLogonIniConfiguration.GetIniFullPath()
+
+* Enhancement: Structure API
+  Interface IRfcStructure was enhanced to offer the possibility for a structure to be
+  converted to a string and vice versa via the new methods Stringify() and 
+  Destringify(string). Check the API documentation for details.
+
+* Enhancement: repository metadata handling
+  If a datatype is defined as structure, but shall be used as table, an anonymous table type 
+  is generated automatically in all cases and not only if such a structure is used for a 
+  table parameter.
+
+* Enhancement: decnumber library
+  Shared libsapICUdecnumber.dll is replaced with a static equivalent. As a consequence
+  associated APIs influencing loading this library have been set to be deprecated and
+  do have not any effect anymore.
+
+* Enhancement: integrity
+  All assemblies are now signed with authenticode signing.
+
+-----------------------------------------------------------------------------------------
+
+Release Notes NCo 3.1.1 (GA version)
+NCo 3.1 is the successor of NCo 3.0. In note 3152653 you can find the .NET runtimes and
+Windows releases, for which the new version is supported. Please note that some releases
+have been dropped and that the minimum .NET framework version has been raised to 4.6.2.
+NCo 3.1 is supposed to be byte-code compatible to NCo 3.0 as long as you are not using
+methods or fields, that have been set to obsolete in NCo 3.0. Those have been removed
+from NCo 3.1. Below you can find a list of the most important new features now supported
+with NCo 3.1.
+
+* Support for fast serialization
+  The RFC runtime of NCo can now serialize the function module data in the fast
+  serialization mode, if the partner system supports that serialization format as well.
+  Technically, it is a column-based serialization of the data, which has been shipped
+  initially with application server ABAP 7.51 and has been downported later so that also
+  older systems benefit from the performance improvements of that serialization. Note
+  2372888 describes the ABAP system prerequisites.
+  Find more details about the new configuration parameters in the API documentation of
+  the class RfcConfigParameters.
+* WebSocket RFC communication
+  RFC communication is possible also using WebSocket technology instead of the existing
+  CPIC based one. The WebSocket RFC communication feature was initially shipped with ABAP
+  Platform 1909 (application server ABAP 7.54). Both client and server side communication
+  are supported, i.e. NCo calling an ABAP system and an ABAP system is calling NCo via
+  WebSocket RFC. The ABAP platform documentation for WebSocket RFC
+  (see https://help.sap.com/viewer/753088fc00704d0a80e7fbd6803c8adb/201909.000/en-US/51f1edadb2754e539f6e6335dd1eb4cc.html")
+  describes what needs to be done in the ABAP system as a prerequisite, how a destination
+  pointing to an NCo WebSocket RFC server needs to be configured in the ABAP system, and
+  what are the restrictions.
+  Find more details about the new configuration parameters in the API documentation of
+  the class RfcConfigParameters.
+* CPIC performance improvement in WAN scenarios
+  When executing requests in WAN scenarios and exchanging large data amounts, the
+  streaming feature of CPIC allows to send data without waiting for acknowledgements for
+  each data package. Thus, latency effects and overall execution times are dramatically
+  decreased. NCo turns on CPIC streaming automatically, if the partner system supports it
+  as well.
+* Application Server maintenance support
+  For destinations configured for CPIC based communication with load balancing, NCo will
+  check regularly which application servers belong to the logon group. If an application 
+  server is taken out of the group, e.g. for maintenance purposes, NCo will recognize and 
+  after a short time, all connections pointing to this application server will be closed.
+  Note: This works only, if the logon group is flagged as "External RFC enabled".
+-----------------------------------------------------------------------------------------
+
+Info about versions 3.1.0.x
+
+3.1.0.x were early versions of NCo 3.1 that were allowed to be used in restricted use
+cases only, within a small set of SAP tools, e.g. Analysis Office.
+
+Copyright   2009-2025 SAP SE. All Rights Reserved.
+

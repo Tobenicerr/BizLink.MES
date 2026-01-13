@@ -1,0 +1,51 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <PlatformTarget>AnyCPU</PlatformTarget>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="AutoMapper" Version="15.0.1" />
+    <PackageReference Include="BCrypt.Net-Next" Version="4.0.3" />
+    <PackageReference Include="System.Configuration.ConfigurationManager" Version="8.0.0" />
+    <PackageReference Include="System.DirectoryServices.AccountManagement" Version="8.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\BizLink.Domain\BizLink.MES.Domain.csproj" />
+    <ProjectReference Include="..\BizLink.Infrastructure\BizLink.MES.Infrastructure.csproj" />
+  </ItemGroup>
+
+	<!-- 明确把原生 DLL 复制到输出根（避免被放到子目录或未复制） -->
+	<ItemGroup>
+	  <Reference Include="sapnco">
+	    <HintPath>..\libs\sapnco_x64\sapnco.dll</HintPath>
+	  </Reference>
+	  <Reference Include="sapnco_utils">
+	    <HintPath>..\libs\sapnco_x64\sapnco_utils.dll</HintPath>
+	  </Reference>
+	</ItemGroup>
+
+	<ItemGroup>
+		<None Include="..\libs\sapnco_x64\cpc4n.dll">
+			<Link>cpc4n.dll</Link>
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</None>
+		<None Include="..\libs\sapnco_x64\ijwhost.dll">
+			<Link>ijwhost.dll</Link>
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</None>
+		<None Include="..\libs\sapnco_x64\Microsoft.Win32.Registry.dll">
+			<Link>Microsoft.Win32.Registry.dll</Link>
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</None>
+		<!--<None Include="..\libs\sapnco_x64\System.Configuration.ConfigurationManager.dll">
+			<Link>System.Configuration.ConfigurationManager.dll</Link>
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</None>-->
+	</ItemGroup>
+
+</Project>

@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:BizLink.MES.MAUI.ViewModel"
+             xmlns:model="clr-namespace:BizLink.MES.MAUI.Model"
+             x:Class="BizLink.MES.MAUI.View.StockTransferPage"
+             x:DataType="vm:LineStockTransferViewModel"
+             Title="物料移库">
+    <Grid RowDefinitions="Auto, Auto, *, Auto"
+      ColumnDefinitions="*"
+      Padding="15"
+      RowSpacing="10">
+
+        <!-- 第1行: 库位扫描 -->
+        <Frame Grid.Row="0" Padding="10" CornerRadius="8">
+            <VerticalStackLayout>
+                <Label Text="目标库位" FontSize="14" TextColor="Gray"/>
+                <Entry x:Name="LocationEntry"
+                   Text="{Binding TargetLocation}"
+                   Placeholder="请扫描或输入目标库位..."
+                   FontSize="18"
+                   ClearButtonVisibility="WhileEditing"
+                   Completed="LocationEntry_Completed"/>
+            </VerticalStackLayout>
+        </Frame>
+
+        <!-- 第2行: 物料标签扫描 -->
+        <Frame Grid.Row="1" Padding="10" CornerRadius="8">
+            <VerticalStackLayout>
+                <Label Text="物料标签" FontSize="14" TextColor="Gray"/>
+                <Entry x:Name="MaterialTagEntry"
+                   Text="{Binding MaterialTag}"
+                   Placeholder="请扫描物料标签..."
+                   FontSize="18"
+                   ClearButtonVisibility="WhileEditing"
+                   ReturnCommand="{Binding ProcessMaterialTagScanCommand}"/>
+            </VerticalStackLayout>
+        </Frame>
+
+        <!-- 第3行: 已扫描列表 -->
+        <CollectionView Grid.Row="2"
+                    ItemsSource="{Binding ScannedTags}">
+            <CollectionView.EmptyView>
+                <Grid>
+                    <Label Text="暂无扫描记录"
+                       HorizontalOptions="Center"
+                       VerticalOptions="Center"
+                       FontSize="Medium"
+                       TextColor="Gray"/>
+                </Grid>
+            </CollectionView.EmptyView>
+            <CollectionView.ItemTemplate>
+                <DataTemplate x:DataType="model:MaterialTagInfo">
+                    <Border Stroke="#E0E0E0"
+                        StrokeThickness="1"
+                        Padding="15"
+                        Margin="0,5"
+                        StrokeShape="RoundRectangle 10,10,10,10">
+                        <Grid RowDefinitions="Auto, Auto, Auto, Auto"
+                          ColumnDefinitions="Auto, *"
+                          RowSpacing="5"
+                          ColumnSpacing="10">
+
+                            <!-- 物料号 -->
+                            <Label Grid.Row="0" Grid.Column="0" Text="物料号:" FontAttributes="Bold"/>
+                            <Label Grid.Row="0" Grid.Column="1" Text="{Binding MaterialCode}" />
+                            <Label Grid.Row="0" Grid.Column="1" Text="{Binding Quantity, StringFormat='数量: {0}'}" HorizontalOptions="End" />
+
+                            <!-- 批次号 -->
+                            <Label Grid.Row="1" Grid.Column="0" Text="批次号:" FontAttributes="Bold"/>
+                            <Label Grid.Row="1" Grid.Column="1" Text="{Binding BatchCode}" />
+
+                            <!-- 标签号 -->
+                            <Label Grid.Row="2" Grid.Column="0" Text="标签号:" FontAttributes="Bold"/>
+                            <Label Grid.Row="2" Grid.Column="1" Text="{Binding BarCode}" />
+
+                            <!-- 库位 -->
+                            <Label Grid.Row="3" Grid.Column="0" Text="库    位:" FontAttributes="Bold"/>
+                            <Label Grid.Row="3" Grid.Column="1" Text="{Binding LocationCode}" />
+
+
+                        </Grid>
+                    </Border>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+        </CollectionView>
+
+        <!-- 第4行: 操作按钮 -->
+        <VerticalStackLayout Grid.Row="3" Spacing="10" HorizontalOptions="Fill">
+            <Button Text="清空" 
+                Command="{Binding ClearCommand}"
+                HorizontalOptions="Fill"
+                BackgroundColor="OrangeRed"/>
+            <Button Text="提交" 
+                Command="{Binding SubmitCommand}"
+                HorizontalOptions="Fill"/>
+        </VerticalStackLayout>
+
+    </Grid>
+
+</ContentPage>

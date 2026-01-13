@@ -1,0 +1,24 @@
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <PlatformTarget>AnyCPU</PlatformTarget>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\BizLink.Application\BizLink.MES.Application.csproj" />
+    <ProjectReference Include="..\BizLink.Domain\BizLink.MES.Domain.csproj" />
+    <ProjectReference Include="..\BizLink.Infrastructure\BizLink.MES.Infrastructure.csproj" />
+    <ProjectReference Include="..\BizLink.MES.Shared\BizLink.MES.Shared.csproj" />
+  </ItemGroup>
+
+	<!-- 明确把原生 DLL 复制到输出根（避免被放到子目录或未复制） -->
+
+
+</Project>
