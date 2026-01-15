@@ -169,7 +169,7 @@ namespace BizLink.MES.Infrastructure.Persistence.Repositories
 
         public async Task<List<WorkOrder>> GetListByDispatchDateEndAsync(int factoryid, DateTime startdate)
         {
-            return await _db.Queryable<WorkOrder>().Where(w => w.FactoryId == factoryid && w.ScheduledStartDate <= startdate && w.ScheduledStartDate >= startdate.AddDays(-14).Date && StatusQueryRules.ActiveWorkOrderStatus.Contains(w.Status)).ToListAsync();
+            return await _db.Queryable<WorkOrder>().Where(w => w.FactoryId == factoryid && w.ScheduledStartDate <= startdate && w.ScheduledStartDate >= startdate.AddDays(-30).Date && StatusQueryRules.ActiveWorkOrderStatus.Contains(w.Status)).ToListAsync();
         }
 
         public async Task<List<WorkOrder>> GetByIdAsync(List<int> ids)

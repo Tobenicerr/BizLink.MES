@@ -43,7 +43,51 @@ namespace BizLink.MES.WinForms
             catch (Exception ex)
             {
                 // 处理异常，例如网址格式不正确或用户没有默认浏览器
-                AntdUI.Message.error(this,$"无法打开网址: {ex.Message}");
+                AntdUI.Message.error(this, $"无法打开网址: {ex.Message}");
+            }
+        }
+
+        private void label7_Click(object sender, EventArgs e)
+        {
+            string url = "http://10.163.144.13:8100/#/de-link/Vf16rgJc"; // 您想要打开的网址
+
+            try
+            {
+                // 这是在 .NET Core / .NET 8 中推荐的写法，
+                // 它能确保在所有平台上都使用操作系统的 shell 来执行
+                var psi = new ProcessStartInfo
+                {
+                    FileName = url,
+                    UseShellExecute = true
+                };
+                Process.Start(psi);
+            }
+            catch (Exception ex)
+            {
+                // 处理异常，例如网址格式不正确或用户没有默认浏览器
+                AntdUI.Message.error(this, $"无法打开网址: {ex.Message}");
+            }
+        }
+
+        private void label9_Click(object sender, EventArgs e)
+        {
+            string url = "http://10.163.144.13:8100/#/de-link/nOn3NWyY"; // 您想要打开的网址
+
+            try
+            {
+                // 这是在 .NET Core / .NET 8 中推荐的写法，
+                // 它能确保在所有平台上都使用操作系统的 shell 来执行
+                var psi = new ProcessStartInfo
+                {
+                    FileName = url,
+                    UseShellExecute = true
+                };
+                Process.Start(psi);
+            }
+            catch (Exception ex)
+            {
+                // 处理异常，例如网址格式不正确或用户没有默认浏览器
+                AntdUI.Message.error(this, $"无法打开网址: {ex.Message}");
             }
         }
     }

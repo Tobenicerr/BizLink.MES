@@ -6,7 +6,7 @@
     <UseWindowsForms>true</UseWindowsForms>
     <ImplicitUsings>enable</ImplicitUsings>
     <ApplicationIcon>logo-120x120-blue.ico</ApplicationIcon>
-	<Version>1.0.1.188</Version>
+	<Version>1.0.1.189</Version>
 	<ApplicationManifest>app.manifest</ApplicationManifest>
   </PropertyGroup>
   <ItemGroup>

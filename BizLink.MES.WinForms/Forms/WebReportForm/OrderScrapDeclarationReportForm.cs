@@ -1,5 +1,7 @@
-﻿using BizLink.MES.Application.Services;
+﻿using BizLink.MES.Application.DTOs;
+using BizLink.MES.Application.Services;
 using BizLink.MES.WinForms.Common;
+using BizLink.MES.WinForms.Common.Helper;
 using BizLink.MES.WinForms.Infrastructure;
 using System;
 using System.Collections.Generic;
@@ -71,7 +73,7 @@ namespace BizLink.MES.WinForms.Forms.WebReportForm
                   new AntdUI.Column("ScrapQuantity", "报废数量", AntdUI.ColumnAlign.Right).SetDisplayFormat("0.###").SetLocalizationTitleID("Table.Column."),
 
                   new AntdUI.Column("ScrapReason", "报废原因", AntdUI.ColumnAlign.Center).SetLocalizationTitleID("Table.Column."),
-
+                      new AntdUI.Column("Remark", "备注", AntdUI.ColumnAlign.Center).SetLocalizationTitleID("Table.Column."),
                 new AntdUI.Column("CreatedBy", "操作人员", AntdUI.ColumnAlign.Center).SetLocalizationTitleID("Table.Column."),
                 new AntdUI.Column("CreatedOn", "创建时间", AntdUI.ColumnAlign.Center).SetDisplayFormat("yyyy-MM-dd HH:mm:ss").SetLocalizationTitleID("Table.Column."),
                    new AntdUI.Column("FactoryCode", "工厂", AntdUI.ColumnAlign.Center).SetLocalizationTitleID("Table.Column."),
@@ -129,6 +131,43 @@ namespace BizLink.MES.WinForms.Forms.WebReportForm
                 return;
             }
             await LoadDataAsync();
+        }
+
+        private async void ExportButton_Click(object sender, EventArgs e)
+        {
+            await RunAsync(ExportButton, async () =>
+            {
+                var data = TableControl.DataSource as List<SapOrderScrapDeclarationDto>;
+                if (data != null && data.Count() > 0)
+                {
+                    var result = data.Select(d => new
+                    {
+                        订单号 = d.WorkOrderNo,
+                        工序序号 = d.OperationNo,
+                        工作中心 = d.WorkCenterCode,
+                        订单物料 = d.MaterialCode,
+                        //d.MaterialDesc,
+                        //d.SuperiorOrder,
+                        //d.LeadingOrder,
+                        //d.LeadingMaterial,
+                        报废类型 = d.ScrapMaterialType == "RAW_MATERIAL" ? "原材料报废" : d.ScrapMaterialType == "FINISHED_GOODS" ? "半成品报废" : d.ScrapMaterialType,
+                        报废物料 = d.ScrapMaterialCode,
+                        物料描述 = d.ScrapMaterialDesc,
+                        单位 = d.BaseUnit,
+                        报废数量 = d.ScrapQuantity,
+                        报废原因 = d.ScrapReason,
+                        备注 = d.Remark,
+                        创建人员 = d.CreatedBy,
+                        创建时间 = d.CreatedOn,
+                        工厂代码 = d.FactoryCode
+                    }).ToList();
+                    ExcelExportHelper.ExportToExcel(this.ParentForm, result, $"报废填报清单{DateTime.Now:yyyyMMdd}");
+                }
+                else
+                    throw new Exception("当前无数据可导出，请先执行查询！");
+
+
+            }, successMsg: "导出完成！", confirmMsg: "是否导出报废填报清单信息？");
         }
     }
 }

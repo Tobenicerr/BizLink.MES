@@ -37,6 +37,7 @@
             TableControl = new AntdUI.Table();
             panel3 = new AntdUI.Panel();
             PaginationControl = new AntdUI.Pagination();
+            ExportButton = new AntdUI.Button();
             tableLayoutPanel1.SuspendLayout();
             panel1.SuspendLayout();
             panel2.SuspendLayout();
@@ -63,6 +64,7 @@
             // 
             // panel1
             // 
+            panel1.Controls.Add(ExportButton);
             panel1.Controls.Add(SearchButton);
             panel1.Controls.Add(CreateDatePicker);
             panel1.Controls.Add(KeywordInput);
@@ -151,6 +153,17 @@
             PaginationControl.Text = "pagination1";
             PaginationControl.ValueChanged += PaginationControl_ValueChanged;
             // 
+            // ExportButton
+            // 
+            ExportButton.Font = new Font("Microsoft YaHei UI", 11F);
+            ExportButton.Location = new Point(408, -1);
+            ExportButton.Name = "ExportButton";
+            ExportButton.Size = new Size(75, 42);
+            ExportButton.TabIndex = 3;
+            ExportButton.Text = "导出";
+            ExportButton.Type = AntdUI.TTypeMini.Success;
+            ExportButton.Click += ExportButton_Click;
+            // 
             // OrderScrapDeclarationReportForm
             // 
             AutoScaleDimensions = new SizeF(7F, 17F);
@@ -177,5 +190,6 @@
         private AntdUI.Button SearchButton;
         private AntdUI.DatePicker CreateDatePicker;
         private AntdUI.Input KeywordInput;
+        private AntdUI.Button ExportButton;
     }
 }
