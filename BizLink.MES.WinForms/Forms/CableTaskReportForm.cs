@@ -9,7 +9,7 @@ using BizLink.MES.WinForms.Common;
 using BizLink.MES.WinForms.Common.Helper;
 using BizLink.MES.WinForms.Infrastructure;
 using Dm.util;
-using DocumentFormat.OpenXml.Wordprocessing;
+using Newtonsoft.Json;
 using SqlSugar;
 using System;
 using System.Collections.Generic;
@@ -27,17 +27,25 @@ namespace BizLink.MES.WinForms.Forms
     public partial class CableTaskReportForm : MesBaseForm
     {
         private readonly CableTaskModuleFacade _facade;
+        private readonly IWorkOrderTaskExecuteLogService _workOrderTaskExecuteLogService;
+        private readonly IWorkOrderMaterialTaskService _workOrderMaterialTaskService;
+        private readonly IWorkOrderTaskConsumService _workOrderTaskConsumService;
         private readonly IFormFactory _formFactory;
         private bool _isProgrammaticPageChange = false;
 
 
         public CableTaskReportForm(
            CableTaskModuleFacade facade,
+           IWorkOrderTaskExecuteLogService workOrderTaskExecuteLogService,
+           IWorkOrderMaterialTaskService workOrderMaterialTaskService,
+           IWorkOrderTaskConsumService workOrderTaskConsumService,
            IFormFactory formFactory)
         {
             _facade = facade;
             _formFactory = formFactory;
-
+            _workOrderTaskExecuteLogService = workOrderTaskExecuteLogService;
+            _workOrderMaterialTaskService = workOrderMaterialTaskService;
+            _workOrderTaskConsumService = workOrderTaskConsumService;
             InitializeComponent();
             InitializeTable();
         }
@@ -114,6 +122,7 @@ namespace BizLink.MES.WinForms.Forms
             var result = await _facade.View.GetCableTaskPageListAsync(
                 pageIndex,
                 pageSize,
+                AppSession.CurrentFactoryId,
                 keywordInput.Text.Trim(),
                 orders,
                 startDatePicker.Value,
@@ -123,6 +132,7 @@ namespace BizLink.MES.WinForms.Forms
 
             if (result != null && result.TotalCount > 0)
             {
+
                 // 绑定数据
                 TableControl.DataSource = result.Items.Select(x => new CableTaskReportView
                 {
@@ -136,7 +146,15 @@ namespace BizLink.MES.WinForms.Forms
                     WorkSationCode = x.WorkStationCode,
                     StartTime = x.StartTime,
                     FactoryCode = x.FactoryCode,
-                    Status = x.TaskCompletedQty == null ? "未开始":(x.TaskQuantity == x.TaskCompletedQty ? "已完成":"执行中"),
+                    Status = x.Status switch
+                    {
+                        null => "未同步",
+                        WorkTaskStatus.New => "已排产",
+                        WorkTaskStatus.InProgress => "执行中",
+                        WorkTaskStatus.Suspended => "已挂起",
+                        WorkTaskStatus.Completed => "已完成",
+                        _ => "已关闭"
+                    },
                     DispatchDate = x.DispatchDate,
                     ActStartTime = x.ActStartTime,
                     TaskId = x.TaskId,
@@ -186,24 +204,16 @@ namespace BizLink.MES.WinForms.Forms
                 try
                 {
                     // 1. 获取报工记录
-                    var taskConfirms = await _facade.Confirm.GetListByTaskIdAsync((int)data.TaskId);
+                    var taskConfirms = await _workOrderTaskExecuteLogService.GetListByTaskIdAsync((int)data.TaskId,TaskLevel.Material);
 
                     if (taskConfirms != null)
                     {
-                        var detailList = taskConfirms.OrderByDescending(x => x.ConfirmNumber)
+                        var detailList = taskConfirms.OrderByDescending(x => x.BatchCode)
                        .Select(x => new CableTaskReportDetailView(x)).ToList();
 
                         // 2. 补充信息 (上料时间、人员姓名)
                         foreach (var detailView in detailList)
                         {
-                            // 获取最早的上料记录时间作为开始时间
-                            var materials = await _facade.MaterialAdd.GetByTaskIdAsync(detailView.TaskId);
-                            var firstMaterial = materials.OrderBy(x => x.CreateOn).FirstOrDefault();
-                            if (firstMaterial != null)
-                            {
-                                detailView.StartDate = firstMaterial.CreateOn;
-                            }
-
                             // 获取人员姓名
                             var user = await _facade.UserService.GetByEmployeeIdAsync(detailView.EmployerCode);
                             if (user != null)
@@ -216,13 +226,47 @@ namespace BizLink.MES.WinForms.Forms
                     }
                     else
                         throw new Exception("未查询到相关的报工记录！");
-                   
+
                 }
                 catch (Exception ex)
                 {
                     AntdUI.Message.error(this, "加载详情失败: " + ex.Message);
                 }
             }
+        }
+
+        private async void ExportButton_Click(object sender, EventArgs e)
+        {
+            await RunAsync(ExportButton, async () =>
+            {
+                var data = TableControl.DataSource as List<CableTaskReportView>;
+                if (data == null || data.Count() == 0)
+                    throw new Exception("未查询到待导出的数据，请重新查询！");
+                //var processIds = data.Select(x => x.OrderProcessId).ToList();
+                var tasks = await _facade.Task.GetByProcessIdsAsync(data.Select(x => x.OrderProcessId).ToList());
+                //var taskConfirms = await _facade.Confirm.GetListByTaskIdAsync(tasks.Select(t => t.Id).ToList());
+                var result = tasks.Select(t => new 
+                {
+                    BU = t.ProfitCenter,
+                    订单号 = t.OrderNumber,
+                    工序序号 = t.Operation,
+                    物料号 = t.MaterialCode,
+                    物料描述 = t.MaterialDesc,
+                    BOM行 = t.MaterialItem,
+                    排产日期 = t.DispatchDate,
+                    工作中心 = t.WorkCenter,
+                    数量 = t.Quantity,
+                    完成数量 = t.CompletedQty,
+                    开始时间 = t.CreateOn,
+                    结束时间 = t.UpdateOn,
+                    工时时长MIN = ((t.UpdateOn - t.CreateOn)?.TotalMinutes).HasValue ? (t.UpdateOn - t.CreateOn)?.TotalMinutes.ToString("F2") : "—",
+                    生产备注 = t.ProductionRemark
+                }).ToList();
+                if (result != null && result.Count() > 0)
+                    ExcelExportHelper.ExportToExcel(this.ParentForm, result, $"断线报工记录{DateTime.Now:yyyyMMdd}");
+                else
+                    throw new Exception("未查询到当前断线任务的报工记录，无法导出！");
+            },confirmMsg:"即将导出当前断线执行数据，是否继续？");
         }
 
         #endregion
@@ -232,43 +276,43 @@ namespace BizLink.MES.WinForms.Forms
         private async void orderTable_CellButtonClick(object sender, TableButtonEventArgs e)
         {
             // A. 主表操作：重启订单
-            if (e.Record is CableTaskReportView main && e.Btn.Id == "restart")
+            if (e.Record is CableTaskReportView main)
             {
                 if (e.Btn.Id == "restart")
                 {
                     await RunAsync(async () =>
                     {
-                        var task = await _facade.Task.GetByIdAsync((int)main.TaskId);
+                        var task = await _workOrderMaterialTaskService.GetByIdAsync((int)main.TaskId);
                         if (task == null)
                             throw new Exception("任务不存在！");
 
-                        if (task.Quantity <= task.CompletedQty)
+                        if (task.TargetQuantity <= task.CompletedQuantity)
                             throw new Exception("订单已完成，无法重启！");
 
-                        if (task.Status != ((int)WorkOrderStatus.Finished).ToString())
+                        if (task.Status != WorkTaskStatus.Completed)
                             throw new Exception("订单未完成，无需重启！");
 
                         // 更新任务状态
-                        bool result = await _facade.Task.UpdateAsync(new WorkOrderTaskUpdateDto
+                        bool result = await _workOrderMaterialTaskService.UpdateAsync(new WorkOrderMaterialTaskUpdateDto
                         {
                             Id = task.Id,
-                            Status = ((int)WorkOrderStatus.OnGoing).ToString(),
+                            Status = WorkTaskStatus.InProgress,
                             UpdateBy = AppSession.CurrentUser.EmployeeId,
-                            UpdateOn = DateTime.Now
+                            UpdatedOn = DateTime.Now
                         });
 
                         if (result)
                         {
                             // 将“完工”状态的 Confirm 记录回退为“正常”状态
-                            var confirms = await _facade.Confirm.GetListByTaskIdAsync(task.Id);
-                            var finishedConfirm = confirms.FirstOrDefault(x => x.Status == "1");
+                            var confirms = await _workOrderTaskExecuteLogService.GetListByTaskIdAsync(task.Id, TaskLevel.Material);
+                            var finishedConfirm = confirms.FirstOrDefault(x => x.Status == WorkTaskStatus.Completed);
 
                             if (finishedConfirm != null)
                             {
                                 await _facade.Confirm.UpdateAsync(new WorkOrderTaskConfirmUpdateDto
                                 {
                                     Id = finishedConfirm.Id,
-                                    Status = "0"
+                                    Status = WorkTaskStatus.InProgress
                                 });
                             }
                             // 可选：刷新列表 await LoadDataAsync();
@@ -281,39 +325,38 @@ namespace BizLink.MES.WinForms.Forms
                 {
                     await RunAsync(async () =>
                     {
-                        var task = await _facade.Task.GetByIdAsync((int)main.TaskId);
+                        var task = await _workOrderMaterialTaskService.GetByIdAsync((int)main.TaskId);
                         if (task == null)
                             throw new Exception("任务不存在！");
 
-                        if (task.Status == ((int)WorkOrderStatus.Finished).ToString())
+                        if (task.Status == WorkTaskStatus.Completed)
                             throw new Exception("断线任务完成，无需强制关闭！");
                         // 更新任务状态
-                        bool result = await _facade.Task.UpdateAsync(new WorkOrderTaskUpdateDto
+                        bool result = await _workOrderMaterialTaskService.UpdateAsync(new WorkOrderMaterialTaskUpdateDto
                         {
                             Id = task.Id,
-                            Status = ((int)WorkOrderStatus.Finished).ToString(),
-                            Remark = "强制关闭",
+                            Status = WorkTaskStatus.Closed,
                             UpdateBy = AppSession.CurrentUser.EmployeeId,
-                            UpdateOn = DateTime.Now
-                            
+                            UpdatedOn = DateTime.Now
+
                         });
 
-                        if (result)
-                        {
-                            // 将“完工”状态的 Confirm 记录回退为“正常”状态
-                            var confirms = await _facade.Confirm.GetListByTaskIdAsync(task.Id);
-                            var finishedConfirm = confirms.OrderByDescending(x => x.Id).FirstOrDefault();
+                        //if (result)
+                        //{
+                        //    // 将“完工”状态的 Confirm 记录回退为“正常”状态
+                        //    var confirms = await _workOrderTaskExecuteLogService.GetListByTaskIdAsync(task.Id, TaskLevel.Material);
+                        //    var finishedConfirm = confirms.OrderByDescending(x => x.Id).FirstOrDefault();
 
-                            if (finishedConfirm != null)
-                            {
-                                await _facade.Confirm.UpdateAsync(new WorkOrderTaskConfirmUpdateDto
-                                {
-                                    Id = finishedConfirm.Id,
-                                    Status = "1"
-                                });
-                            }
-                            // 可选：刷新列表 await LoadDataAsync();
-                        }
+                        //    if (finishedConfirm != null)
+                        //    {
+                        //        await _facade.Confirm.UpdateAsync(new WorkOrderTaskConfirmUpdateDto
+                        //        {
+                        //            Id = finishedConfirm.Id,
+                        //            Status = WorkTaskStatus
+                        //        });
+                        //    }
+                        //    // 可选：刷新列表 await LoadDataAsync();
+                        //}
 
                     }, successMsg: "关闭成功，当前断线任务已完成！", confirmMsg: "即将关闭断线任务，是否继续？");
                 }
@@ -326,45 +369,40 @@ namespace BizLink.MES.WinForms.Forms
                 await RunAsync(async () =>
                 {
                     // 1. 选择打印机
-                    string chosenPrinter = null;
+                    string selectValue = null;
                     _formFactory.Show<PrinterSelectForm>(form =>
                     {
                         form.FormClosed += (s, args) =>
                         {
                             if (form.DialogResult == DialogResult.OK)
-                                chosenPrinter = form.SelectedPrinterName;
+                                selectValue = form.SelectedPrinterName;
                         };
                     }, isModal: true);
 
-                    if (string.IsNullOrWhiteSpace(chosenPrinter))
+                    if (string.IsNullOrWhiteSpace(selectValue))
                         throw new Exception("打印已取消或未选择打印机！");
 
-                    var printType = chosenPrinter.Contains(PrinterType.NetworkPrinter.GetDescription())
-                        ? PrinterType.NetworkPrinter : PrinterType.LocalPrinter;
+                    if (!string.IsNullOrEmpty(selectValue) && selectValue.indexOf("-") > 0)
+                    {
+                        // 2. 获取打印所需数据
+                        var workOrderTask = await _workOrderMaterialTaskService.GetByIdAsync(data.TaskId);
+                        var bom = await _facade.WorkOrderBomItemService.GetByIdAsync((int)workOrderTask.RefSourceId);
+                        var workOrder = await _facade.WorkOrderService.GetByIdAsync(bom.WorkOrderId);
+                        var confirm = await _workOrderTaskExecuteLogService.GetByIdAsync(data.Id);
 
-                    // 2. 获取打印所需数据
-                    var workOrderTask = await _facade.Task.GetByIdAsync(data.TaskId);
-                    var workOrder = await _facade.WorkOrderService.GetByIdAsync(workOrderTask.OrderId);
-                    var confirm = await _facade.Confirm.GetByIdAsync(data.Id);
+                        var printerName = selectValue[..selectValue.LastIndexOf('-')];
+                        var printerTypeStr = selectValue[(selectValue.LastIndexOf('-') + 1)..];
+                        var printerType = EnumExtensions.GetEnumByDescription<PrinterType>(printerTypeStr);
+                        var cuttingParam = JsonConvert.DeserializeObject<CableCutParamDto>(workOrderTask.ExtAttributes);
+                        var consumes = await _workOrderTaskConsumService.GetListByConfirmIdAsync(cuttingParam.Id);
+                        if (!consumes.Any())
+                            throw new Exception("未查询到断线消耗记录，无法补打!");
+                        var result = LabelPrintHelper.CuttingLabelPrinter(workOrderTask.MaterialCode, workOrderTask.MaterialDesc, (decimal)workOrderTask.TargetQuantity, (decimal)cuttingParam.CuttingLength, workOrder.ProfitCenter, workOrder.OrderNumber, consumes.First().BatchCode, consumes.First().BarCode, (decimal)confirm.CompletedQuantity, printerType, printerName);
+                        if (!result)
+                            throw new Exception("断线标签打印失败！");
+                    }
 
-                    // 获取消耗批次
-                    var consumList = await _facade.Consum.GetListByConfirmIdAsync(data.Id);
-                    var batchCode = consumList.FirstOrDefault(x => x.MovementType == "261")?.BatchCode;
-
-                    if (string.IsNullOrEmpty(batchCode))
-                        throw new Exception("未找到关联的物料消耗批次！");
-
-                    // 3. 执行打印
-                    bool rtn = LabelPrintHelper.CuttingReportPrinter(
-                        workOrderTask,
-                        confirm,
-                        workOrder.ProfitCenter,
-                        batchCode,
-                        printType,
-                        chosenPrinter.Split('-')[0]);
-
-                    if (!rtn)
-                        throw new Exception("打印失败，请检查打印机或网络状态！");
+            
 
                 }, successMsg: "标签补打成功！", confirmMsg: "即将补打过账标签，是否继续？");
             }
@@ -380,9 +418,12 @@ namespace BizLink.MES.WinForms.Forms
         {
             statusSelect.Items.AddRange(new MenuItem[] {
                 new MenuItem{ Name=string.Empty, Text=string.Empty},
-                new MenuItem{ Name="1", Text="未开始"},
-                new MenuItem{ Name="2", Text="执行中"},
-                new MenuItem{ Name="4", Text="已完成"},
+                new MenuItem{ Name=WorkTaskStatus.New, Text="已排产"},
+                new MenuItem{ Name=WorkTaskStatus.InProgress, Text="执行中"},
+                new MenuItem{ Name=WorkTaskStatus.Suspended, Text="已挂起"},
+                new MenuItem{ Name=WorkTaskStatus.Completed, Text="已完成"},
+                new MenuItem{ Name=WorkTaskStatus.Closed, Text="已关闭"},
+
             });
         }
 
@@ -408,9 +449,12 @@ namespace BizLink.MES.WinForms.Forms
                     {
                         return value as string switch
                         {
-                            "未开始" => new AntdUI.CellTag("未开始", AntdUI.TTypeMini.Error),
+                            "未同步" => new AntdUI.CellTag("未同步", AntdUI.TTypeMini.Error),
+                            "已排产" => new AntdUI.CellTag("已排产", AntdUI.TTypeMini.Error),
                             "已完成" => new AntdUI.CellTag("已完成", AntdUI.TTypeMini.Success),
                             "执行中" => new AntdUI.CellTag("执行中", AntdUI.TTypeMini.Primary),
+                            "已关闭" => new AntdUI.CellTag("已关闭", AntdUI.TTypeMini.Success),
+
                             _ => null
                         };
                     }
@@ -441,7 +485,7 @@ namespace BizLink.MES.WinForms.Forms
                 new AntdUI.Column("WorkSationCode", "工位", AntdUI.ColumnAlign.Center).SetLocalizationTitleID("Table.Column."),
                   new AntdUI.Column("FactoryCode", "工厂", AntdUI.ColumnAlign.Center).SetDefaultFilter().SetLocalizationTitleID("Table.Column."),
                 new AntdUI.Column("ProfitCenter", "BU", AntdUI.ColumnAlign.Center).SetDefaultFilter().SetLocalizationTitleID("Table.Column."),
-   
+
                 new AntdUI.Column("DispatchDate", "装配日期", AntdUI.ColumnAlign.Center).SetDisplayFormat("yyyy-MM-dd").SetLocalizationTitleID("Table.Column."),
 
                 //{
@@ -468,6 +512,8 @@ namespace BizLink.MES.WinForms.Forms
         {
 
         }
+
+
 
         #endregion
 
@@ -937,7 +983,7 @@ namespace BizLink.MES.WinForms.Forms
         }
 
         AntdUI.CellLink[] _btns = new AntdUI.CellLink[] {
-                        new AntdUI.CellButton("restart", "任务重启", AntdUI.TTypeMini.Primary),
+                        //new AntdUI.CellButton("restart", "任务重启", AntdUI.TTypeMini.Primary),
                         new AntdUI.CellButton("delete", "任务关闭", AntdUI.TTypeMini.Error),
                     };
     public AntdUI.CellLink[] Btns
@@ -956,15 +1002,16 @@ namespace BizLink.MES.WinForms.Forms
 
     public class CableTaskReportDetailView : AntdUI.NotifyProperty
     {
-        public CableTaskReportDetailView(WorkOrderTaskConfirmDto dto)
+        public CableTaskReportDetailView(WorkOrderTaskExecuteLogDto dto)
         {
             _id = dto.Id;
-            _taskId = dto.TaskId;
-            _confirmNo = dto.ConfirmNumber;
-            _confirmDate = dto.ConfirmDate;
-            _confirmQty = dto.ConfirmQuantity;
+            _taskId = (int)dto.TaskId;
+            _confirmNo = dto.BatchCode;
+            _startDate = dto.StartTime;
+            _confirmDate = dto.EndTime;
+            _confirmQty = dto.CompletedQuantity;
             _employerCode = dto.EmployerCode;
-            _completedStatus = dto.Status == "1" ?"完工":string.Empty;
+            _completedStatus = dto.Status == WorkTaskStatus.Completed ?"完工":string.Empty;
             _remark = dto.Remark;
             _btns = new AntdUI.CellLink[] {
                         new AntdUI.CellButton("reprint", "标签补打", AntdUI.TTypeMini.Primary),

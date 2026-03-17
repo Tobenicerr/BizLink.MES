@@ -56,7 +56,19 @@ namespace BizLink.MES.Application.Services
             throw new NotImplementedException();
         }
 
+        public async Task<List<WorkOrderOperationConsumpDto>> GetListByConfirmIdsAsync(List<int> confirmIds)
+        {
+            var entities = await _workOrderOperationConsumpRepository.GetListByConfirmIdsAsync(confirmIds);
+            return _mapper.Map<List<WorkOrderOperationConsumpDto>>(entities);
+        }
+
         public async Task<List<WorkOrderOperationConsumpDto>> GetListByProcessIdAsync(int processid)
+        {
+            var entities = await _workOrderOperationConsumpRepository.GetListByProcessIdAsync(processid);
+            return _mapper.Map<List<WorkOrderOperationConsumpDto>>(entities);
+        }
+
+        public async Task<List<WorkOrderOperationConsumpDto>> GetListByProcessIdAsync(List<int> processid)
         {
             var entities = await _workOrderOperationConsumpRepository.GetListByProcessIdAsync(processid);
             return _mapper.Map<List<WorkOrderOperationConsumpDto>>(entities);

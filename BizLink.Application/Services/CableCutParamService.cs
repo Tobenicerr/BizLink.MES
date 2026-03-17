@@ -17,14 +17,16 @@ namespace BizLink.MES.Application.Services
         private readonly ICableCutParamRepository _cableCutParamRepository;
         private readonly IMapper _mapper; // 2. 声明 IMapper
         private readonly IUnitOfWork _unitOfWork;
+        private readonly ISapRfcRepository _sapRfcRepository;
 
 
 
-        public CableCutParamService(ICableCutParamRepository cableCutParamRepository, IMapper mapper , IUnitOfWork unitOfWork)
+        public CableCutParamService(ICableCutParamRepository cableCutParamRepository, IMapper mapper , IUnitOfWork unitOfWork, ISapRfcRepository sapRfcRepository)
         {
             _cableCutParamRepository = cableCutParamRepository;
             _mapper = mapper;
             _unitOfWork = unitOfWork;
+            _sapRfcRepository = sapRfcRepository;
         }
         public async Task<CableCutParamDto> CreateAsync(CableCutParamCreateDto createDto)
         {
@@ -96,6 +98,12 @@ namespace BizLink.MES.Application.Services
         {
             var entities = await _cableCutParamRepository.GetListBySimiMaterialCodeAsync(semiMaterialCode);
             return entities.Select(x => _mapper.Map<CableCutParamDto>(x)).ToList();
+        }
+
+        public async Task<List<CableCutParamDto>> GetListBySimiMaterialCodeFromSapAsync(List<string> semiMaterialCode)
+        {
+            var entities = await _sapRfcRepository.GetCableCutParamByMaterialsAsync(semiMaterialCode);
+            return _mapper.Map<List<CableCutParamDto>>(entities);
         }
 
         public Task<bool> UpdateAsync(CableCutParamUpdateDto updateDto)

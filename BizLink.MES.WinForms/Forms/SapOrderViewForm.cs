@@ -211,7 +211,7 @@ namespace BizLink.MES.WinForms.Forms
                 var existingOrders = await _facade.WorkOrderService.GetListByDispatchDateAsync(null, startDate, null, AppSession.CurrentFactoryId);
                 if (existingOrders != null && existingOrders.Count > 100 && minOpDict.Count > 10)
                 {
-                    if (AntdUI.Modal.open(this, "提示", $"{startDate:yyyy-MM-dd}已存在超过100笔订单，是否继续同步？", TType.Warn) != DialogResult.OK)
+                    if (AntdUI.Modal.open(this.ParentForm, "提示", $"{startDate:yyyy-MM-dd}已存在超过100笔订单，是否继续同步？", TType.Warn) != DialogResult.OK)
                         return;
                 }
 

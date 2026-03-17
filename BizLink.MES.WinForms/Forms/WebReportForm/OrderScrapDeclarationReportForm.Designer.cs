@@ -30,14 +30,15 @@
         {
             tableLayoutPanel1 = new TableLayoutPanel();
             panel1 = new AntdUI.Panel();
-            SearchButton = new AntdUI.Button();
+            CreateDatePickerRange = new AntdUI.DatePickerRange();
             CreateDatePicker = new AntdUI.DatePicker();
+            ExportButton = new AntdUI.Button();
+            SearchButton = new AntdUI.Button();
             KeywordInput = new AntdUI.Input();
             panel2 = new AntdUI.Panel();
             TableControl = new AntdUI.Table();
             panel3 = new AntdUI.Panel();
             PaginationControl = new AntdUI.Pagination();
-            ExportButton = new AntdUI.Button();
             tableLayoutPanel1.SuspendLayout();
             panel1.SuspendLayout();
             panel2.SuspendLayout();
@@ -64,9 +65,10 @@
             // 
             // panel1
             // 
+            panel1.Controls.Add(CreateDatePickerRange);
+            panel1.Controls.Add(CreateDatePicker);
             panel1.Controls.Add(ExportButton);
             panel1.Controls.Add(SearchButton);
-            panel1.Controls.Add(CreateDatePicker);
             panel1.Controls.Add(KeywordInput);
             panel1.Dock = DockStyle.Fill;
             panel1.Location = new Point(3, 3);
@@ -75,24 +77,46 @@
             panel1.TabIndex = 0;
             panel1.Text = "panel1";
             // 
+            // CreateDatePickerRange
+            // 
+            CreateDatePickerRange.Font = new Font("Microsoft YaHei UI", 11F);
+            CreateDatePickerRange.Format = "yyyy-MM-dd HH:mm";
+            CreateDatePickerRange.Location = new Point(159, -1);
+            CreateDatePickerRange.Name = "CreateDatePickerRange";
+            CreateDatePickerRange.Size = new Size(350, 42);
+            CreateDatePickerRange.TabIndex = 4;
+            CreateDatePickerRange.TextAlign = HorizontalAlignment.Center;
+            // 
+            // CreateDatePicker
+            // 
+            CreateDatePicker.Font = new Font("Microsoft YaHei UI", 11F);
+            CreateDatePicker.Location = new Point(613, 0);
+            CreateDatePicker.Name = "CreateDatePicker";
+            CreateDatePicker.Size = new Size(160, 42);
+            CreateDatePicker.TabIndex = 1;
+            CreateDatePicker.Visible = false;
+            // 
+            // ExportButton
+            // 
+            ExportButton.Font = new Font("Microsoft YaHei UI", 11F);
+            ExportButton.Location = new Point(587, -1);
+            ExportButton.Name = "ExportButton";
+            ExportButton.Size = new Size(75, 42);
+            ExportButton.TabIndex = 3;
+            ExportButton.Text = "导出";
+            ExportButton.Type = AntdUI.TTypeMini.Success;
+            ExportButton.Click += ExportButton_Click;
+            // 
             // SearchButton
             // 
             SearchButton.Font = new Font("Microsoft YaHei UI", 11F);
-            SearchButton.Location = new Point(335, -1);
+            SearchButton.Location = new Point(515, -1);
             SearchButton.Name = "SearchButton";
             SearchButton.Size = new Size(75, 42);
             SearchButton.TabIndex = 2;
             SearchButton.Text = "查询";
             SearchButton.Type = AntdUI.TTypeMini.Primary;
             SearchButton.Click += SearchButton_Click;
-            // 
-            // CreateDatePicker
-            // 
-            CreateDatePicker.Font = new Font("Microsoft YaHei UI", 11F);
-            CreateDatePicker.Location = new Point(169, -1);
-            CreateDatePicker.Name = "CreateDatePicker";
-            CreateDatePicker.Size = new Size(160, 42);
-            CreateDatePicker.TabIndex = 1;
             // 
             // KeywordInput
             // 
@@ -153,17 +177,6 @@
             PaginationControl.Text = "pagination1";
             PaginationControl.ValueChanged += PaginationControl_ValueChanged;
             // 
-            // ExportButton
-            // 
-            ExportButton.Font = new Font("Microsoft YaHei UI", 11F);
-            ExportButton.Location = new Point(408, -1);
-            ExportButton.Name = "ExportButton";
-            ExportButton.Size = new Size(75, 42);
-            ExportButton.TabIndex = 3;
-            ExportButton.Text = "导出";
-            ExportButton.Type = AntdUI.TTypeMini.Success;
-            ExportButton.Click += ExportButton_Click;
-            // 
             // OrderScrapDeclarationReportForm
             // 
             AutoScaleDimensions = new SizeF(7F, 17F);
@@ -191,5 +204,6 @@
         private AntdUI.DatePicker CreateDatePicker;
         private AntdUI.Input KeywordInput;
         private AntdUI.Button ExportButton;
+        private AntdUI.DatePickerRange CreateDatePickerRange;
     }
 }

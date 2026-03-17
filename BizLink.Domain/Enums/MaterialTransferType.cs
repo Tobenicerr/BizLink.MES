@@ -23,5 +23,8 @@ namespace BizLink.MES.Domain.Enums
 
         [Description("16")]
         ReversalofGoodsIssuetoCostCenter = 5,
+
+        [Description("22")]
+        FinishedGoodsReceipt = 6,
     }
 }

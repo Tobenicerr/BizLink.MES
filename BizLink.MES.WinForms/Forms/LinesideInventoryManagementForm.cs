@@ -71,6 +71,7 @@ namespace BizLink.MES.WinForms.Forms
 
             keyboardInput.PlaceholderText = "请输入物料号或批次...";
             locationSelectMultiple.PlaceholderText = "请选择库位...";
+            MaterialInput.PlaceholderText = "请输入物料号...";
 
             // 使用 RunAsync 处理加载异常
             await RunAsync(async () =>
@@ -96,31 +97,22 @@ namespace BizLink.MES.WinForms.Forms
 
         private async Task LoadInventoryAsync()
         {
-            // 1. 获取全量数据
-            var stockList = await _facade.RawStock.GetAllAsync(AppSession.CurrentFactoryId);
-
-            // 2. 内存过滤
-            if (!string.IsNullOrWhiteSpace(keyboardInput.Text.Trim()))
-            {
-                var key = keyboardInput.Text.Trim();
-                stockList = stockList.Where(x => x.MaterialCode.Contains(key) || x.BatchCode.Contains(key)).ToList();
-            }
-
+            var locationIds = new List<int>();
+            bool usage = true;
             var selectedLocations = locationSelectMultiple.SelectedValue.Select(obj => (MenuItem)obj).ToList();
             if (selectedLocations.Any())
             {
-                var locIds = selectedLocations.Select(x => Convert.ToInt32(x.Name)).ToList();
-                stockList = stockList.Where(x => locIds.Contains(x.LocationId ?? 0)).ToList();
-            }
+                locationIds = selectedLocations.Select(x => Convert.ToInt32(x.Name)).ToList();            }
 
             if (!quantitySwitch.Checked)
-            {
-                stockList = stockList.Where(x => x.LastQuantity <= 0).ToList();
-            }
+                usage = false;
             else
-            {
-                stockList = stockList.Where(x => x.LastQuantity > 0).ToList();
-            }
+                usage = true;
+            var materialcodes = MaterialInput.Text.Split(new[] { "\r\n", "\n" }, StringSplitOptions.RemoveEmptyEntries).ToList();
+
+
+            var stockList = await _facade.RawStock.GetListByMaterialCodeAsync(AppSession.CurrentFactoryId, keyboardInput.Text.Trim(), materialcodes,locationIds,usage);
+
 
             // 3. 聚合显示 (Master View)
             var stockSummary = stockList

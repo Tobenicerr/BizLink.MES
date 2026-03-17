@@ -80,5 +80,9 @@ namespace BizLink.MES.Infrastructure.Persistence.Repositories
             return await _db.Queryable<WorkOrderTaskConfirm>().Where(confirm => confirm.TaskId == taskid).ToListAsync();
         }
 
+        public async Task<List<WorkOrderTaskConfirm>> GetListByTaskIdAsync(List<int> taskids)
+        {
+            return await _db.Queryable<WorkOrderTaskConfirm>().Where(c => taskids.Contains(c.TaskId)).ToListAsync();
+        }
     }
 }

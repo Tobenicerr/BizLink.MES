@@ -57,7 +57,17 @@ namespace BizLink.MES.Shared.Extensions
                 if (serviceInterface != null)
                 {
                     // 如果找到了对应的接口，则将接口和实现以 Scoped 生命周期注册到 DI 容器
-                    services.AddScoped(serviceInterface, type);
+                   // services.AddScoped(serviceInterface, type);
+
+                    // ✅ 修改点在这里：
+
+                    // 1. 首先注册具体的类（Self-Registration）
+                    // 这样 scope.ServiceProvider.GetRequiredService<TaskExecutionService>() 就能工作了
+                    services.AddScoped(type);
+
+                    // 2. 然后注册接口，并将其“转发”给具体的类
+                    // 这样 ITaskExecutionService 和 TaskExecutionService 在同一个 Scope 内是同一个单例
+                    services.AddScoped(serviceInterface, provider => provider.GetRequiredService(type));
                 }
                 else
                 {

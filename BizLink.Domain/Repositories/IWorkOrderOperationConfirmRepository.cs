@@ -13,6 +13,8 @@ namespace BizLink.MES.Domain.Repositories
 
         Task<WorkOrderOperationConfirm> GetConfirmWitemConsumeptionAsync(int confirmid);
 
+        Task<List<WorkOrderOperationConfirm>> GetConfirmWitemConsumeptionAsync(List<int> confirmids);
+
         Task<(List<WorkOrderOperationConfirm>, int TotalCount)> GetOperationConfirmPageListAsync(int pageIndex, int pageSize, List<string>? orders, string? status, List<string>? operation);
 
         Task<List<WorkOrderOperationConfirm>> GetListByProcessIdAsync(int processid);

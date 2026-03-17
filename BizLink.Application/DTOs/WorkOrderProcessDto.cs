@@ -27,6 +27,32 @@ namespace BizLink.MES.Application.DTOs
             get; set;
         }
 
+        public string? MaterialCode
+        {
+            get; set;
+        }
+
+        public string? MaterialDesc
+        {
+            get; set;
+        }
+
+        public string? ProfitCenter
+        {
+            get; set;
+        }
+
+        public string? StorageLocation
+        {
+            get; set;
+        }
+
+        public DateTime? DispatchDate
+        {
+            get;
+            set;
+        }
+
         public int? ConfirmNo
         {
             get; set;

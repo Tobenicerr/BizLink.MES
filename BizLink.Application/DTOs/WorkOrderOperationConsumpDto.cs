@@ -23,6 +23,11 @@ namespace BizLink.MES.Application.DTOs
             get; set;
         }
 
+        public int WorkOrderProcessId
+        {
+            get; set;
+        }
+
         public int? SapConfirmationNo
         {
             get; set;

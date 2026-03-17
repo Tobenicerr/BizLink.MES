@@ -25,9 +25,16 @@ namespace BizLink.MES.Application.Facade
             get;
         }
 
+
+        public ITaskGenerationService TaskGenerationService
+        {
+            get;
+        }
+
         public SapOrderModuleFacade(
             IMaterialViewService materialView,
             ICableCutParamService cableCutParam,
+            ITaskGenerationService taskGenerationService,
 
             // 2. 基础服务 (透传给基类 BaseAppFacade)
             IParameterGroupService paramsService,
@@ -64,6 +71,8 @@ namespace BizLink.MES.Application.Facade
         {
             MaterialView = materialView;
             CableCutParam = cableCutParam;
+            TaskGenerationService = taskGenerationService;
+
         }
 
         /// <summary>
@@ -226,6 +235,7 @@ namespace BizLink.MES.Application.Facade
                         ComponentMainMaterial = first.LeadingMaterial,
                         ReservationNo = first.ReservationNo,
                         PlanningPeriod = first.PlanPeriod,
+                        PlannerRemark = "2102",
                         StorageLocation = first.StorageLocation,
                         ProfitCenter = first.ProfitCenter,
                         LabelCount = first.LabelCount,
@@ -345,134 +355,140 @@ namespace BizLink.MES.Application.Facade
             var processIdMap = existingProcesses.ToDictionary(x => (x.WorkOrderNo, x.Operation), x => x.Id);
 
             // 6. 处理 BOM (核心逻辑：Check SyncWMSStatus)
-            // 先获取物料属性用于ConsumeType
-            var bomMaterialCodes = sapData.sapOrderBoms.Select(x => x.MaterialCode.TrimStart('0')).Distinct().ToList();
-            var bomMaterials = await MaterialView.GetListByCodesAsync(factory.FactoryCode, bomMaterialCodes);
-            var materialMap = bomMaterials.ToDictionary(x => x.MaterialCode, x => x);
-            // 用于记录 SAP 中存在的 BOM，以便后续比对找出 MES 中多余的 BOM
-            var sapBomKeys = new HashSet<(string OrderNo, int ReservationItem, string MaterialCode)>();
-            int i = 0;
-            foreach (var ob in sapData.sapOrderBoms)
+            if (sapData.sapOrderBoms.Any()) 
             {
-                sapBomKeys.Add((ob.OrderNo, (int)ob.ReservationItem, ob.MaterialCode));
-
-
-                if (!orderIdMap.ContainsKey(ob.OrderNo))
-                    continue;
-
-                int? processId = null;
-                if (processIdMap.TryGetValue((ob.OrderNo, ob.Operation), out var pid))
-                    processId = pid;
-                // 确定 ConsumeType
-                int? consumeType = ob.ConsumeType;
-                if (materialMap.TryGetValue(ob.MaterialCode.TrimStart('0'), out var matView))
+                // 先获取物料属性用于ConsumeType
+                var bomMaterialCodes = sapData.sapOrderBoms.Select(x => x.MaterialCode.TrimStart('0')).Distinct().ToList();
+                var bomMaterials = await MaterialView.GetListByCodesAsync(factory.FactoryCode, bomMaterialCodes);
+                var materialMap = bomMaterials.ToDictionary(x => x.MaterialCode, x => x);
+                // 用于记录 SAP 中存在的 BOM，以便后续比对找出 MES 中多余的 BOM
+                var sapBomKeys = new HashSet<(string OrderNo, int ReservationItem, string MaterialCode)>();
+                int i = 0;
+                foreach (var ob in sapData.sapOrderBoms)
                 {
-                    consumeType = matView.ConsumeType; // 假设 View DTO 里是 int
-                }
+                    sapBomKeys.Add((ob.OrderNo, (int)ob.ReservationItem, ob.MaterialCode));
 
-                // 查找现有 BOM
-                var existingBom = existingBoms.FirstOrDefault(b =>
-                    b.WorkOrderNo == ob.OrderNo &&
-                    b.ReservationItem == ob.ReservationItem && // 假设 BomItem 是唯一行号标识
-                    b.MaterialCode == ob.MaterialCode);
 
-                if (existingBom == null)
-                {
-                    // [新增]：数据库中没有，插入
-                    bomsToInsert.Add(new WorkOrderBomItemCreateDto
+                    if (!orderIdMap.ContainsKey(ob.OrderNo))
+                        continue;
+
+                    int? processId = null;
+                    if (processIdMap.TryGetValue((ob.OrderNo, ob.Operation), out var pid))
+                        processId = pid;
+                    // 确定 ConsumeType
+                    int? consumeType = ob.ConsumeType;
+                    if (materialMap.TryGetValue(ob.MaterialCode.TrimStart('0'), out var matView))
                     {
-                        WorkOrderId = orderIdMap[ob.OrderNo],
-                        WorkOrderProcessId = (int)processId,
-                        WorkOrderNo = ob.OrderNo,
-                        MaterialCode = ob.MaterialCode,
-                        MaterialDesc = ob.MaterialDesc,
-                        RequiredQuantity = ob.RequireQuantity,
-                        Unit = ob.BaseUnit,
-                        ReservationItem = ob.ReservationItem,
-                        ComponentScrap = ob.ComponentScrap,
-                        BomItem = ob.BomItem,
-                        Operation = ob.Operation,
-                        MovementAllowed = ob.AllowedMovement.Contains("X"),
-                        QuantityIsFixed = ob.FixIndicator.Contains("X"),
-                        ConsumeType = consumeType,
-                        SyncWMSStatus = 0, // 默认为 0
-                        SuperMaterialCode = ob.SuperMaterialCode,
-                        CreateBy = currentUser
-                    });
-                }
-                else
-                {
-                    // [修改]：数据库中有
-                    // 核心条件：只有当 SyncWMSStatus == 0 (未推送到 WMS) 时，才允许 SAP 数据覆盖本地
-                    if (existingBom.SyncWMSStatus == 0)
+                        consumeType = matView.ConsumeType; // 假设 View DTO 里是 int
+                    }
+
+                    // 查找现有 BOM
+                    var existingBom = existingBoms.FirstOrDefault(b =>
+                        b.WorkOrderNo == ob.OrderNo &&
+                        b.ReservationItem == ob.ReservationItem && // 假设 BomItem 是唯一行号标识
+                        b.MaterialCode == ob.MaterialCode);
+
+                    if (existingBom == null)
                     {
-                        bomsToUpdate.Add(new WorkOrderBomItemUpdateDto
+                        // [新增]：数据库中没有，插入
+                        bomsToInsert.Add(new WorkOrderBomItemCreateDto
                         {
-                            Id = existingBom.Id,
-                            RequiredQuantity = ob.RequireQuantity, // 允许更新数量
+                            WorkOrderId = orderIdMap[ob.OrderNo],
+                            WorkOrderProcessId = (int)processId,
+                            WorkOrderNo = ob.OrderNo,
+                            MaterialCode = ob.MaterialCode,
+                            MaterialDesc = ob.MaterialDesc,
+                            RequiredQuantity = ob.RequireQuantity,
                             Unit = ob.BaseUnit,
+                            ReservationItem = ob.ReservationItem,
                             ComponentScrap = ob.ComponentScrap,
                             BomItem = ob.BomItem,
-                            ReservationItem = ob.ReservationItem,
-                            QuantityIsFixed = ob.FixIndicator.Contains("X"),
+                            Operation = ob.Operation,
                             MovementAllowed = ob.AllowedMovement.Contains("X"),
+                            QuantityIsFixed = ob.FixIndicator.Contains("X"),
                             ConsumeType = consumeType,
+                            SyncWMSStatus = 0, // 默认为 0
                             SuperMaterialCode = ob.SuperMaterialCode,
-                            UpdateBy = currentUser,
-                            UpdateOn = DateTime.Now
+                            CreateBy = currentUser
                         });
                     }
-                    // else { Log: BOM已推送WMS，忽略SAP更新 }
-                }
-
-            }
-
-            foreach (var dbBom in existingBoms)
-            {
-                // 检查该 BOM 是否在 SAP 数据中存在
-                if (!sapBomKeys.Contains((dbBom.WorkOrderNo, (int)dbBom.ReservationItem, dbBom.MaterialCode)))
-                {
-                    // SAP 中不存在 -> 说明被删除了
-                    // 如果未推送 WMS，则将其需求量置为 0
-                    if (dbBom.RequiredQuantity > 0)
+                    else
                     {
-                        bomsToUpdate.Add(new WorkOrderBomItemUpdateDto
+                        // [修改]：数据库中有
+                        // 核心条件：只有当 SyncWMSStatus == 0 (未推送到 WMS) 时，才允许 SAP 数据覆盖本地
+                        if (existingBom.SyncWMSStatus == 0)
                         {
-                            Id = dbBom.Id,
-                            RequiredQuantity = 0, // 置为 0，代表该行已失效
-                            MovementAllowed  = false,
-                            UpdateBy = currentUser,
-                            UpdateOn = DateTime.Now
-                        });
+                            bomsToUpdate.Add(new WorkOrderBomItemUpdateDto
+                            {
+                                Id = existingBom.Id,
+                                RequiredQuantity = ob.RequireQuantity, // 允许更新数量
+                                Unit = ob.BaseUnit,
+                                ComponentScrap = ob.ComponentScrap,
+                                BomItem = ob.BomItem,
+                                ReservationItem = ob.ReservationItem,
+                                QuantityIsFixed = ob.FixIndicator.Contains("X"),
+                                MovementAllowed = ob.AllowedMovement.Contains("X"),
+                                ConsumeType = consumeType,
+                                SuperMaterialCode = ob.SuperMaterialCode,
+                                UpdateBy = currentUser,
+                                UpdateOn = DateTime.Now
+                            });
+                        }
+                        // else { Log: BOM已推送WMS，忽略SAP更新 }
+                    }
+
+                }
+
+                foreach (var dbBom in existingBoms)
+                {
+                    // 检查该 BOM 是否在 SAP 数据中存在
+                    if (!sapBomKeys.Contains((dbBom.WorkOrderNo, (int)dbBom.ReservationItem, dbBom.MaterialCode)))
+                    {
+                        // SAP 中不存在 -> 说明被删除了
+                        // 如果未推送 WMS，则将其需求量置为 0
+                        if (dbBom.RequiredQuantity > 0)
+                        {
+                            bomsToUpdate.Add(new WorkOrderBomItemUpdateDto
+                            {
+                                Id = dbBom.Id,
+                                RequiredQuantity = 0, // 置为 0，代表该行已失效
+                                MovementAllowed = false,
+                                UpdateBy = currentUser,
+                                UpdateOn = DateTime.Now
+                            });
+                        }
                     }
                 }
+
+                // 7. 执行数据库操作
+                // 建议在 Service 层提供 BatchCreate / BatchUpdate 方法
+
+                // 9. 执行 BOM DB 操作
+                if (bomsToUpdate.Any())
+                    await WorkOrderBomItemService.UpdateBatchAsync(bomsToUpdate);
+                if (bomsToInsert.Any())
+                    await WorkOrderBomItemService.CreateBatchAsync(bomsToInsert);
             }
-
-            // 7. 执行数据库操作
-            // 建议在 Service 层提供 BatchCreate / BatchUpdate 方法
-
-            // 9. 执行 BOM DB 操作
-            if (bomsToUpdate.Any())
-                await WorkOrderBomItemService.UpdateBatchAsync(bomsToUpdate);
-            if (bomsToInsert.Any())
-                await WorkOrderBomItemService.CreateBatchAsync(bomsToInsert);
+            
 
             // 8. 同步断线参数 (逻辑保持不变)
-            if (sapData.sapOrderOperations.Any())
-            {
-                var semimaterials = sapData.sapOrderOperations.Select(x => x.MaterialCode.TrimStart('0')).Distinct().ToList();
-                // ... 获取并 CreateBatchAsync ...
-                // (调用 API 获取断线参数并保存)
-                var cutParamUrl = ApiSettings["MesApi"].Endpoints["GetCableCutParamByMaterial"];
-                var cutResult = await MesApi.PostAsync<object, List<CableCutParamCreateDto>>(cutParamUrl, new
-                {
-                    semiMaterialCode = semimaterials
-                });
-                if (cutResult.IsSuccess && cutResult.Data.Any())
-                {
-                    await CableCutParam.CreateBatchAsync(cutResult.Data);
-                }
-            }
+            //if (sapData.sapOrderOperations.Any())
+            //{
+            //    var semimaterials = sapData.sapOrderBoms.Select(x => x.SuperMaterialCode.TrimStart('0')).Distinct().ToList();
+            //    // ... 获取并 CreateBatchAsync ...
+            //    // (调用 API 获取断线参数并保存)
+            //    var cutParamUrl = ApiSettings["MesApi"].Endpoints["GetCableCutParamByMaterial"];
+            //    var cutResult = await MesApi.PostAsync<object, List<CableCutParamCreateDto>>(cutParamUrl, new
+            //    {
+            //        semiMaterialCode = semimaterials
+            //    });
+            //    if (cutResult.IsSuccess && cutResult.Data.Any())
+            //    {
+            //        await CableCutParam.CreateBatchAsync(cutResult.Data);
+            //    }
+            //}
+
+            await TaskGenerationService.GenerateOrUpdateTasksAsync(orderNos, currentUser);
 
             // (此处保留原有的复杂 GroupBy 和 Select 逻辑，为了篇幅简化展示，实际应完整复制原逻辑)
             //var workOrders = sapData.sapOrderOperations

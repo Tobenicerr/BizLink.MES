@@ -67,9 +67,9 @@ namespace BizLink.MES.Application.Services
             return _mapper.Map<List<SapOrderScrapDeclarationDto>>(entities);
         }
 
-        public async Task<PagedResultDto<SapOrderScrapDeclarationDto>> GetPageListAsync(int pageIndex, int pageSize,string factoryCode, string? keyword, DateTime? createdDate)
+        public async Task<PagedResultDto<SapOrderScrapDeclarationDto>> GetPageListAsync(int pageIndex, int pageSize,string factoryCode, string? keyword, DateTime? startDate, DateTime? endDate)
         {
-            var (entities,totalCount) = await _sapOrderScrapDeclarationRepository.GetPageListAsync(pageIndex, pageSize, factoryCode, keyword, createdDate);
+            var (entities, totalCount) = await _sapOrderScrapDeclarationRepository.GetPageListAsync(pageIndex, pageSize, factoryCode, keyword, startDate, endDate);
             return new PagedResultDto<SapOrderScrapDeclarationDto>
             {
                 Items = _mapper.Map<List<SapOrderScrapDeclarationDto>>(entities),

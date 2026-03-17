@@ -70,6 +70,12 @@ namespace BizLink.MES.Application.Services
             return entities.Select(x => _mapper.Map<WorkStationDto>(x)).ToList();
         }
 
+        public async Task<List<WorkStationDto>> GetListByWorkcenterIdAsync(List<int> workcenterIds)
+        {
+            var entities = await _workStationRepository.GetListByWorkcenterIdAsync(workcenterIds);
+            return _mapper.Map<List<WorkStationDto>>(entities);
+        }
+
         public async Task UpdateAsync(WorkStationUpdateDto workStation)
         {
             var entity = _mapper.Map<WorkStation>(workStation);

@@ -29,6 +29,15 @@ namespace BizLink.MES.Infrastructure.Persistence.Repositories
                             .FirstAsync();
         }
 
+        public async Task<List<WorkOrderOperationConfirm>> GetConfirmWitemConsumeptionAsync(List<int> confirmids)
+        {
+            // 使用导航查询 IncludeMany 一次性加载分组和其下的所有明细项
+            return await _db.Queryable<WorkOrderOperationConfirm>()
+                            .Includes(g => g.Consumps.Where(x => x.Status == "1").OrderBy(x => x.Id).ToList())
+                            .Where(g => confirmids.Contains(g.Id))
+                            .ToListAsync();
+        }
+
         public async Task<List<WorkOrderOperationConfirm>> GetListByProcessIdAsync(int processid)
         {
             return await _db.Queryable<WorkOrderOperationConfirm>().Where(x => x.ProcessId == processid).ToListAsync();

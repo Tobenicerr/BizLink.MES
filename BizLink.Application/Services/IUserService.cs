@@ -23,5 +23,7 @@ namespace BizLink.MES.Application.Services
 
         Task<List<UserDto>> GetByEmployeeIdAsync(List<string> employeeIds);
 
+        Task<List<UserDto>> GetListByFactoryIdAsync(int factoryId);
+
     }
 }

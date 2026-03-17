@@ -45,6 +45,18 @@ namespace BizLink.MES.Application.Services
             return _mapper.Map<WorkCenterGroupDto>(entity);
         }
 
+        public async Task<WorkCenterGroupDto> GetByWorkCenterCodeAsync(string workcenterCode)
+        {
+            var entity = await _workCenterGroupRepository.GetByWorkCenterCodeAsync(workcenterCode);
+            return _mapper.Map<WorkCenterGroupDto>(entity);
+        }
+
+        public async Task<List<WorkCenterGroupDto>> GetByWorkCenterCodeAsync(List<string> workcenterCode)
+        {
+            var entities = await _workCenterGroupRepository.GetByWorkCenterCodeAsync(workcenterCode);
+            return _mapper.Map<List<WorkCenterGroupDto>>(entities);
+        }
+
         public async Task<List<WorkCenterGroupDto>> GetListByGroupTypeAsync(int factoryid,string grouptype)
         {
             var entities = await _workCenterGroupRepository.GetListByGroupTypeAsync(factoryid,grouptype);

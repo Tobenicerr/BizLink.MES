@@ -21,6 +21,11 @@ namespace BizLink.MES.Domain.Entities
         {
             get; set;
         }
+        [SugarColumn(IsIgnore = true)]
+        public int WorkOrderProcessId
+        {
+            get; set;
+        }
 
         [SugarColumn(IsNullable = true, Length = 10)]
         [SapFieldName("CONF_NO")]

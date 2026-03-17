@@ -10,5 +10,6 @@ namespace BizLink.MES.Application.Services
 {
     public interface IWorkOrderTreeOptimizedService : IGenericService<WorkOrderTreeOptimizedDto, WorkOrderTreeOptimizedCreateDto, WorkOrderTreeOptimizedUpdateDto>
     {
+        Task<List<WorkOrderTreeOptimizedDto>> GetReceipetWorkOrderAsync(int factoryId,DateTime? startDate,DateTime? endDate,string? workCenter); 
     }
 }

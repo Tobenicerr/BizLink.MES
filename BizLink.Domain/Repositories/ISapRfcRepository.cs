@@ -1,6 +1,7 @@
 ﻿using BizLink.MES.Domain.Entities;
 using SAP.Middleware.Connector;
 using System.Data;
+using System.Threading.Tasks;
 
 namespace BizLink.MES.Domain.Repositories
 {
@@ -17,10 +18,15 @@ namespace BizLink.MES.Domain.Repositories
 
         Task<WorkOrderOperationConfirm?> ConfirmOrderCompletionToSAPAsync(WorkOrderOperationConfirm confirm);
 
+        Task<WorkOrderOperationConfirm?> CancelConfirmToSAPAsync(WorkOrderOperationConfirm confirm);
+
+
         Task<List<Material>> GetSAPMaterialAsync(string factoryCode,List<string>? materialCodes,DateTime? startTime, DateTime? endTime);
 
         Task<List<SapRawMaterialStock>> GetRawMaterialStockFromSapAsync(List<SapRawMaterialStock> materialCodes);
 
         Task<List<MaterialTransferLog>> RawMaterialInventoryAdjustmentAsync(List<MaterialTransferLog> input);
+
+        Task<SapLabelDataComponent> GetSapLabelDataByMaterialCodeAsync(string factoryCode, string materialCode);
     }
 }

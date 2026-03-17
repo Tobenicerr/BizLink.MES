@@ -13,6 +13,8 @@ namespace BizLink.MES.Application.Services
 
         Task<List<WorkOrderBomItemDto>> GetListByOrderNoAync(string orderno);
 
+        Task<List<WorkOrderBomItemDto>> GetByIdAsync(List<int> ids);
+
         Task<List<WorkOrderBomItemDto>> GetListByOrderNoAync(List<string> orderno);
 
 

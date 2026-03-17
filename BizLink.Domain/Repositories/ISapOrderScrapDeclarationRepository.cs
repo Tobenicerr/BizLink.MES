@@ -17,6 +17,6 @@ namespace BizLink.MES.Domain.Repositories
 
         Task<List<SapOrderScrapDeclaration>> GetListByWorkCenterAsync(string factorycode, List<string>? workcentercodes, DateTime? startdate, DateTime? enddate, List<string>? workorders);
 
-        Task<(List<SapOrderScrapDeclaration>, int)> GetPageListAsync(int pageIndex, int pageSize, string factoryCode, string? keyword, DateTime? createdDate);
+        Task<(List<SapOrderScrapDeclaration>, int)> GetPageListAsync(int pageIndex, int pageSize, string factoryCode, string? keyword, DateTime? startDate, DateTime? endDate);
     }
 }

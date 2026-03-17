@@ -65,7 +65,7 @@ namespace BizLink.MES.Infrastructure.Persistence.Repositories
         public async Task<(List<MaterialTransferLog> transferLogs, int TotalCount)> GetPagedListAsync(int pageIndex, int pageSize, string? keyword, string? status, DateTime? createdStart, DateTime? createdEnd)
         {
             var query =  _db.Queryable<MaterialTransferLog>().With(SqlWith.NoLock)
-                            .WhereIF(!string.IsNullOrEmpty(keyword), m => m.TransferNo.Contains(keyword) || m.MaterialCode.Contains(keyword) || m.BatchCode.Contains(keyword) || m.ToLocationCode.Contains(keyword) || m.BaseUnit.Contains(keyword))
+                            .WhereIF(!string.IsNullOrEmpty(keyword), m => m.TransferNo.Contains(keyword) || m.MaterialCode.Contains(keyword) || m.BatchCode.Contains(keyword) || m.ToLocationCode.Contains(keyword) || m.BaseUnit.Contains(keyword) || m.WorkOrderNo.Contains(keyword))
                             .WhereIF(!string.IsNullOrEmpty(status), m => m.Status == status)
                             .WhereIF(createdStart != null, m => m.CreatedAt >= createdStart)
                             .WhereIF(createdEnd != null, m => m.CreatedAt <= createdEnd)

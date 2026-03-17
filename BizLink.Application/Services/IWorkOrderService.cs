@@ -32,5 +32,7 @@ namespace BizLink.MES.Application.Services
         Task<bool> UpdateAsync(WorkOrderUpdateDto updateDto);
 
         Task<List<WorkOrderDto>> GetListByDispatchDateEndAsync(int factoryid, DateTime startdate);
+
+
     }
 }

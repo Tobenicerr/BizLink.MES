@@ -3,6 +3,7 @@ using Azure.Core;
 using BizLink.MES.Application.ApiClient;
 using BizLink.MES.Application.DTOs;
 using BizLink.MES.Application.DTOs.Request;
+using BizLink.MES.Application.DTOs.Response;
 using BizLink.MES.Application.Helper;
 using BizLink.MES.Application.Services;
 using BizLink.MES.Domain.Entities;
@@ -43,11 +44,12 @@ namespace BizLink.MES.WebAPI.Controllers
         private readonly IWorkOrderOperationConsumpService _workOrderOperationConsumpService;
 
         private readonly IPackageVerfApiService _packageVerfService;
+        private readonly ITaskExecutionService _taskExecutionService;
 
 
 
 
-        public WorkOrderPickVerfController(IWorkOrderService workOrderService, IWorkOrderViewService workOrderViewService,IProductLinesideStockService productLinesideStockService, IWorkOrderBomItemService workOrderBomItemService, IMaterialViewService materialViewService, IWorkOrderTaskService workOrderTaskService, IWorkOrderProcessService workOrderProcessService, IJyApiClient jyApiClient, IOptions<Dictionary<string, ServiceEndpointSettings>> apiSettings, IWorkOrderOperationConsumptionRecordService workOrderOperationConsumptionRecordService, IMesApiClient mesApiClient, IFactoryService factoryService, IParameterGroupService parameterGroupService, ISapRfcService sapRfcService, ISerialHelperService serialHelperService, IWorkOrderOperationConfirmService workOrderOperationConfirmService, IWorkOrderOperationConsumpService workOrderOperationConsumpService, IPackageVerfApiService packageVerfService)
+        public WorkOrderPickVerfController(IWorkOrderService workOrderService, IWorkOrderViewService workOrderViewService,IProductLinesideStockService productLinesideStockService, IWorkOrderBomItemService workOrderBomItemService, IMaterialViewService materialViewService, IWorkOrderTaskService workOrderTaskService, IWorkOrderProcessService workOrderProcessService, IJyApiClient jyApiClient, IOptions<Dictionary<string, ServiceEndpointSettings>> apiSettings, IWorkOrderOperationConsumptionRecordService workOrderOperationConsumptionRecordService, IMesApiClient mesApiClient, IFactoryService factoryService, IParameterGroupService parameterGroupService, ISapRfcService sapRfcService, ISerialHelperService serialHelperService, IWorkOrderOperationConfirmService workOrderOperationConfirmService, IWorkOrderOperationConsumpService workOrderOperationConsumpService, IPackageVerfApiService packageVerfService, ITaskExecutionService taskExecutionService)
         {
             _workOrderService = workOrderService;
             _workOrderViewService = workOrderViewService;
@@ -66,90 +68,95 @@ namespace BizLink.MES.WebAPI.Controllers
             _serialHelperService = serialHelperService;
             _workOrderOperationConfirmService = workOrderOperationConfirmService;
             _workOrderOperationConsumpService = workOrderOperationConsumpService;
-            _packageVerfService = packageVerfService;        }
+            _packageVerfService = packageVerfService;
+            _taskExecutionService = taskExecutionService;
+        }
 
         [HttpGet]
         public async Task<ActionResult<ApiResponse<object>>> GetWorkOrderRawUnpackAsync(string orderno)
         {
             try
             {
-                if (string.IsNullOrWhiteSpace(orderno))
-                {
-                    throw new Exception("订单号不能为空");
-                }
-                var workorder = await _workOrderService.GetByOrdrNoAsync(orderno.Split("-")[0]);
-                if (workorder == null)
-                    throw new Exception("未查询到订单信息");
-                var factory = await _factoryService.GetByIdAsync(workorder.FactoryId);
-                var bomitems = (await _workOrderBomItemService.GetListByOrderIdAync(workorder.Id)).Where(x => x.RequiredQuantity > 0 && x.MovementAllowed == true).Where(x => x.ConsumeType == (int)ConsumeType.CableMaterial || x.ConsumeType == (int)ConsumeType.OrderBasedMaterial).ToList();
-                if (bomitems == null || bomitems.Count == 0)
-                    throw new Exception("未查询到订单待合箱BOM信息");
-                var products = await _productLinesideStockService.GetListByOrderNoAsync(workorder.OrderNumber);
-                var rtn = await _workOrderViewService.GetPickMtrStockByWorkOrderAsync(workorder.OrderNumber);
-                var firstProcess = (await _workOrderProcessService.GetListByOrderIdAync(workorder.Id)).OrderBy(x => x.Operation).First();
-                //if(firstProcess.Status == "4")
-                //    throw new Exception("当前订单已合箱或无需合箱");
-                var materials = await _materialViewService.GetListByCodesAsync("CN11",bomitems.Select(x => x.MaterialCode).Distinct().ToList());
+                //if (string.IsNullOrWhiteSpace(orderno))
+                //{
+                //    throw new Exception("订单号不能为空");
+                //}
+                //var workorder = await _workOrderService.GetByOrdrNoAsync(orderno.Split("-")[0]);
+                //if (workorder == null)
+                //    throw new Exception("未查询到订单信息");
+                //var factory = await _factoryService.GetByIdAsync(workorder.FactoryId);
+                //var bomitems = (await _workOrderBomItemService.GetListByOrderIdAync(workorder.Id)).Where(x => x.RequiredQuantity > 0 && x.MovementAllowed == true).Where(x => x.ConsumeType == (int)ConsumeType.CableMaterial || x.ConsumeType == (int)ConsumeType.OrderBasedMaterial).ToList();
+                //if (bomitems == null || bomitems.Count == 0)
+                //    throw new Exception("未查询到订单待合箱BOM信息");
+                //var products = await _productLinesideStockService.GetListByOrderNoAsync(workorder.OrderNumber);
+                //var rtn = await _workOrderViewService.GetPickMtrStockByWorkOrderAsync(workorder.OrderNumber);
+                //var firstProcess = (await _workOrderProcessService.GetListByOrderIdAync(workorder.Id)).OrderBy(x => x.Operation).First();
+                ////if(firstProcess.Status == "4")
+                ////    throw new Exception("当前订单已合箱或无需合箱");
+                //var materials = await _materialViewService.GetListByCodesAsync("CN11",bomitems.Select(x => x.MaterialCode).Distinct().ToList());
 
-                var bomrequire = bomitems.GroupJoin(materials, bom => bom.MaterialCode, mtr => mtr.MaterialCode, (bom, mtrgroup) => new { bom, mtrgroup }).SelectMany(t => t.mtrgroup.DefaultIfEmpty(),(x, y) => new WorkOrderPickVerfBomItem { ConsumeType = y.LabelName?? "ROH原材料", ItemNo = x.bom.BomItem, WorkOrderProcessId = x.bom.WorkOrderProcessId, MaterialCode = x.bom.MaterialCode, MaterialDesc = x.bom.MaterialDesc, Quantity = (decimal)x.bom.RequiredQuantity, CompletedQuantity = 0 }).ToList();
+                //var bomrequire = bomitems.GroupJoin(materials, bom => bom.MaterialCode, mtr => mtr.MaterialCode, (bom, mtrgroup) => new { bom, mtrgroup }).SelectMany(t => t.mtrgroup.DefaultIfEmpty(),(x, y) => new WorkOrderPickVerfBomItem { ConsumeType = y.LabelName?? "ROH原材料", ItemNo = x.bom.BomItem, WorkOrderProcessId = x.bom.WorkOrderProcessId, MaterialCode = x.bom.MaterialCode, MaterialDesc = x.bom.MaterialDesc, Quantity = (decimal)x.bom.RequiredQuantity, CompletedQuantity = 0 }).ToList();
 
-                foreach (var item in bomrequire)
-                {
-                    if (item.ConsumeType == "断线")
-                    {
-                        var task = await _workOrderTaskService.GetByProcessIdAsync(item.WorkOrderProcessId, item.ItemNo);
-                        if (task != null)
-                        {
-                            item.Quantity = (decimal)task.Quantity;
-                            item.CompletedQuantity = (decimal)task.CompletedQty;
-                        }
-                        else
-                        {
-                            item.Quantity = 0;
-                            item.CompletedQuantity = 0;
-                        }
-                    }
-                    else
-                    {
-                        foreach (var stock in products.Where(x => x.MaterialCode == item.MaterialCode))
-                        {
-                            if (item.Quantity > item.CompletedQuantity)
-                            {
-                                if (item.Quantity - item.CompletedQuantity > stock.Quantity)
-                                {
-                                    item.CompletedQuantity += (decimal)stock.Quantity;
-                                    stock.Quantity = 0;
-                                    continue;
-                                }
-                                else
-                                {
-                                    var temp = item.Quantity - item.CompletedQuantity;
-                                    item.CompletedQuantity += temp;
-                                    stock.Quantity -= temp;
-                                    break;
-                                }
-                            }
-                            else
-                                break;
-                        }
-                    }
-                }
-                var result = new
-                {
-                    OrderId = workorder.Id,
-                    OrderNo = workorder.OrderNumber,
-                    OperationNo = bomitems.Select(x => x.Operation).FirstOrDefault(),
-                    OperationStatus = firstProcess.Status,
-                    CableItemCount = bomrequire.Where(x => x.ConsumeType == "断线").Count(),
-                    RawItemCount = bomrequire.Where(x => x.ConsumeType != "断线").Count(),
-                    RawMtrBatchCount= products.Where(x => x.BomItem == null).Count(),
-                    LabelCount = workorder.LabelCount,
-                    CableItems = bomrequire.Where(x => x.ConsumeType == "断线").Select(x => new { x.ItemNo,x.MaterialCode,x.MaterialDesc,x.Quantity,x.CompletedQuantity}).ToList(),
-                    CenterStockItems = bomrequire.Where(x => x.ConsumeType == "ROH原材料").Select(x => new { x.ItemNo, x.MaterialCode, x.MaterialDesc, x.Quantity, x.CompletedQuantity }).ToList(),
-                    AutoStockItems = bomrequire.Where(x => x.ConsumeType == "自动仓物料").Select(x => new { x.ItemNo, x.MaterialCode, x.MaterialDesc, x.Quantity, x.CompletedQuantity }).ToList(),
-                };
+                //foreach (var item in bomrequire)
+                //{
+                //    if (item.ConsumeType == "断线")
+                //    {
+                //        var task = await _workOrderTaskService.GetByProcessIdAsync(item.WorkOrderProcessId, item.ItemNo);
+                //        if (task != null)
+                //        {
+                //            item.Quantity = (decimal)task.Quantity;
+                //            item.CompletedQuantity = (decimal)task.CompletedQty;
+                //        }
+                //        else
+                //        {
+                //            item.Quantity = 0;
+                //            item.CompletedQuantity = 0;
+                //        }
+                //    }
+                //    else
+                //    {
+                //        foreach (var stock in products.Where(x => x.MaterialCode == item.MaterialCode))
+                //        {
+                //            if (item.Quantity > item.CompletedQuantity)
+                //            {
+                //                if (item.Quantity - item.CompletedQuantity > stock.Quantity)
+                //                {
+                //                    item.CompletedQuantity += (decimal)stock.Quantity;
+                //                    stock.Quantity = 0;
+                //                    continue;
+                //                }
+                //                else
+                //                {
+                //                    var temp = item.Quantity - item.CompletedQuantity;
+                //                    item.CompletedQuantity += temp;
+                //                    stock.Quantity -= temp;
+                //                    break;
+                //                }
+                //            }
+                //            else
+                //                break;
+                //        }
+                //    }
+                //}
+                //var result = new
+                //{
+                //    OrderId = workorder.Id,
+                //    OrderNo = workorder.OrderNumber,
+                //    OperationNo = bomitems.Select(x => x.Operation).FirstOrDefault(),
+                //    OperationStatus = firstProcess.Status,
+                //    CableItemCount = bomrequire.Where(x => x.ConsumeType == "断线").Count(),
+                //    RawItemCount = bomrequire.Where(x => x.ConsumeType != "断线").Count(),
+                //    RawMtrBatchCount= products.Where(x => x.BomItem == null).Count(),
+                //    LabelCount = workorder.LabelCount,
+                //    CableItems = bomrequire.Where(x => x.ConsumeType == "断线").Select(x => new { x.ItemNo,x.MaterialCode,x.MaterialDesc,x.Quantity,x.CompletedQuantity}).ToList(),
+                //    CenterStockItems = bomrequire.Where(x => x.ConsumeType == "ROH原材料").Select(x => new { x.ItemNo, x.MaterialCode, x.MaterialDesc, x.Quantity, x.CompletedQuantity }).ToList(),
+                //    AutoStockItems = bomrequire.Where(x => x.ConsumeType == "自动仓物料").Select(x => new { x.ItemNo, x.MaterialCode, x.MaterialDesc, x.Quantity, x.CompletedQuantity }).ToList(),
+                //};
 
-                return Ok(ApiResponse<object>.Success(result));
+                //return Ok(ApiResponse<object>.Success(result));
+
+                var result = await _taskExecutionService.GetKittingListAsync(orderno);
+                return Ok(ApiResponse<KittingResponse>.Success(result));
             }
             catch (Exception ex)
             {
@@ -254,7 +261,7 @@ namespace BizLink.MES.WebAPI.Controllers
         //                    ReservationItem = s.Key.ReservationItem,
         //                    MaterialCode = s.Key.MaterialCode.StartsWith("E") ? s.Key.MaterialCode : s.Key.MaterialCode.PadLeft(18, '0'),
         //                    FactoryCode = factory.FactoryCode,
-        //                    FromLocationCode = "2100",
+        //                    FromLocationCode = "2102",
         //                    BatchCode = s.Key.BatchCode,
         //                    MovementType = ((int)s.Key.ConsumptionType).ToString(),
         //                    MovementReason = s.Key.ConsumptionRemark ?? "",
@@ -267,7 +274,7 @@ namespace BizLink.MES.WebAPI.Controllers
         //                var orderpickproducts = products.Where(x => x.BomItem == null && !string.IsNullOrWhiteSpace(x.Remark) && x.Status == "1").ToList();
 
 
-        //                //将按单物料移库到2100库位
+        //                //将按单物料移库到线边库位
         //                var parameterGroup = await _parameterGroupService.GetGroupWithItemsAsync("CN11SAPStockLocation");
         //                var transferUrl = _apiSettings["MesApi"].Endpoints["LineStockTransferToSAP"];
 
@@ -413,7 +420,7 @@ namespace BizLink.MES.WebAPI.Controllers
         //                        BaseUnit = x.BaseUnit ?? "ST",
         //                    }).ToList(),
         //                    FromLocation = parameterGroup.Items.Where(x => x.Key == "SAPRawMtrStock").FirstOrDefault() == null ? "1100" : (parameterGroup.Items.Where(x => x.Key == "SAPRawMtrStock").FirstOrDefault()).Value,
-        //                    ToLocation = parameterGroup.Items.Where(x => x.Key == "SAPLineStock").FirstOrDefault() == null ? "2100" : (parameterGroup.Items.Where(x => x.Key == "SAPLineStock").FirstOrDefault()).Value
+        //                    ToLocation = parameterGroup.Items.Where(x => x.Key == "SAPLineStock").FirstOrDefault() == null ? "" : (parameterGroup.Items.Where(x => x.Key == "SAPLineStock").FirstOrDefault()).Value
         //                };
 
         //                var json = JsonConvert.SerializeObject(tranferRequest);
@@ -507,42 +514,16 @@ namespace BizLink.MES.WebAPI.Controllers
             {
                 if (dto.Status == "verfSuccess")
                 {
-                    await _packageVerfService.PackageVerfUpdateAsync(dto);
-                    //var result = await _packageVerfService.PackageVerfUpdateAsync(dto);
-                    //if (result != null && result.Count() > 0)
-                    //{
-                    //    var requestUrl = _apiSettings["JyApi"].Endpoints["PickTaskApprove"];
-                    //    foreach (var item in result)
-                    //    {
-                    //        var response = await _jyApiClient.PostAsync<object, object>(requestUrl, new
-                    //        {
-                    //            gid = Guid.NewGuid(),
-                    //            billcode = item,
-                    //            User = "admin",
-                    //            plant = "CN11"
-                    //        });
-                    //    }
-                    //}
+                    //await _packageVerfService.PackageVerfUpdateAsync(dto);
+                    await _taskExecutionService.ConfirmKittingAsync((int)dto.WorkOrderId);
+
+
                 }
 
                 else if (dto.Status == "verfReentry")
                 {
-                    await _packageVerfService.PackageVerfReentryAsync(dto);
-                    //var result = await _packageVerfService.PackageVerfReentryAsync(dto);
-                    //if (result != null && result.Count() > 0)
-                    //{
-                    //    var requestUrl = _apiSettings["JyApi"].Endpoints["PickTaskApprove"];
-                    //    foreach (var item in result)
-                    //    {
-                    //        var response = await _jyApiClient.PostAsync<object, object>(requestUrl, new
-                    //        {
-                    //            gid = Guid.NewGuid(),
-                    //            billcode = item,
-                    //            User = "admin",
-                    //            plant = "CN11"
-                    //        });
-                    //    }
-                    //}
+                    //await _packageVerfService.PackageVerfReentryAsync(dto);
+                    await _taskExecutionService.ConfirmKittingAsync((int)dto.WorkOrderId);
                 }
                 else
                     throw new Exception("合箱状态提交错误，无法提交！");
@@ -570,6 +551,35 @@ namespace BizLink.MES.WebAPI.Controllers
             }
 
 
+        }
+
+
+        [HttpPost("ApproveWmsPick")]
+        public async Task<ActionResult<ApiResponse<bool>>> ApproveWmsPickingAsync([FromBody] List<string> pickingNos) 
+        {
+            try
+            {
+                await _taskExecutionService.ApproveWmsPickTaskAsync(pickingNos);
+                return Ok(ApiResponse<bool>.Success(true));
+            }
+            catch (ArgumentException ex) // 处理特定的验证错误
+            {
+                return BadRequest(ApiResponse<object>.Fail($"提交无效：{ex.Message}"));
+            }
+            catch (KeyNotFoundException ex) // 处理 "未找到" 错误
+            {
+                return NotFound(ApiResponse<object>.Fail($"未找到：{ex.Message}"));
+            }
+            catch (InvalidOperationException ex) // 处理业务逻辑失败
+            {
+                return BadRequest(ApiResponse<object>.Fail($"操作失败：{ex.Message}"));
+            }
+            catch (Exception ex) // 处理所有其他意外错误
+            {
+
+                // 4. 向客户端返回通用的错误信息
+                return BadRequest(ApiResponse<object>.Fail($"提交出错：{ex.Message}"));
+            }
         }
     }
 

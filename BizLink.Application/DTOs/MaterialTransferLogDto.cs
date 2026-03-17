@@ -144,6 +144,11 @@ namespace BizLink.MES.Application.DTOs
             get; set;
         }
 
+        public string? WorkCenterCode
+        {
+            get; set;
+        }
+
         public string? Message
         {
             get; set;
@@ -319,6 +324,11 @@ namespace BizLink.MES.Application.DTOs
         {
             get; set;
         }
+
+        public string? WorkCenterCode
+        {
+            get; set;
+        }
         public string? CreatedBy
         {
             get; set;
@@ -424,6 +434,11 @@ namespace BizLink.MES.Application.DTOs
         }
 
         public string? CostCenterCode
+        {
+            get; set;
+        }
+
+        public string? WorkCenterCode
         {
             get; set;
         }

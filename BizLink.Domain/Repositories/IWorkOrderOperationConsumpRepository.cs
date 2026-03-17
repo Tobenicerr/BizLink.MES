@@ -15,5 +15,9 @@ namespace BizLink.MES.Domain.Repositories
         Task<int> DeleteAsync(List<int> ids);
 
         Task<List<WorkOrderOperationConsump>> GetListByProcessIdAsync(int processid);
+
+        Task<List<WorkOrderOperationConsump>> GetListByProcessIdAsync(List<int> processid);
+
+        Task<List<WorkOrderOperationConsump>> GetListByConfirmIdsAsync(List<int> confirmIds);
     }
 }

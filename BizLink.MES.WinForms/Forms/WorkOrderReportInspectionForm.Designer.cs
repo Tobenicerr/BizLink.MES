@@ -60,7 +60,7 @@
             label5 = new AntdUI.Label();
             panel10 = new AntdUI.Panel();
             label7 = new AntdUI.Label();
-            inputNumber2 = new AntdUI.InputNumber();
+            ScrapInputNumber = new AntdUI.InputNumber();
             label6 = new AntdUI.Label();
             ConfInputNumber = new AntdUI.InputNumber();
             panel12 = new AntdUI.Panel();
@@ -110,7 +110,7 @@
             tableLayoutPanel1.RowStyles.Add(new RowStyle(SizeType.Percent, 33.3333321F));
             tableLayoutPanel1.RowStyles.Add(new RowStyle(SizeType.Percent, 33.3333321F));
             tableLayoutPanel1.RowStyles.Add(new RowStyle(SizeType.Percent, 33.3333321F));
-            tableLayoutPanel1.Size = new Size(951, 450);
+            tableLayoutPanel1.Size = new Size(951, 564);
             tableLayoutPanel1.TabIndex = 0;
             // 
             // panel1
@@ -121,7 +121,7 @@
             panel1.Location = new Point(3, 48);
             panel1.Name = "panel1";
             tableLayoutPanel1.SetRowSpan(panel1, 4);
-            panel1.Size = new Size(396, 399);
+            panel1.Size = new Size(396, 513);
             panel1.TabIndex = 0;
             panel1.Text = "panel1";
             // 
@@ -138,7 +138,7 @@
             tableLayoutPanel5.RowCount = 2;
             tableLayoutPanel5.RowStyles.Add(new RowStyle(SizeType.Absolute, 50F));
             tableLayoutPanel5.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
-            tableLayoutPanel5.Size = new Size(396, 399);
+            tableLayoutPanel5.Size = new Size(396, 513);
             tableLayoutPanel5.TabIndex = 0;
             // 
             // panel14
@@ -167,7 +167,7 @@
             panel8.Dock = DockStyle.Fill;
             panel8.Location = new Point(3, 53);
             panel8.Name = "panel8";
-            panel8.Size = new Size(390, 343);
+            panel8.Size = new Size(390, 457);
             panel8.TabIndex = 1;
             panel8.Text = "panel8";
             // 
@@ -180,7 +180,7 @@
             OrderTable.Gap = 12;
             OrderTable.Location = new Point(0, 0);
             OrderTable.Name = "OrderTable";
-            OrderTable.Size = new Size(390, 343);
+            OrderTable.Size = new Size(390, 457);
             OrderTable.TabIndex = 0;
             OrderTable.Text = "table2";
             // 
@@ -201,7 +201,7 @@
             // SearchButton
             // 
             SearchButton.Font = new Font("Microsoft YaHei UI", 10F);
-            SearchButton.Location = new Point(811, 0);
+            SearchButton.Location = new Point(783, -1);
             SearchButton.Name = "SearchButton";
             SearchButton.Size = new Size(90, 42);
             SearchButton.TabIndex = 3;
@@ -212,7 +212,7 @@
             // WorkcenterSelect
             // 
             WorkcenterSelect.Font = new Font("Microsoft YaHei UI", 11F);
-            WorkcenterSelect.Location = new Point(555, -1);
+            WorkcenterSelect.Location = new Point(533, -1);
             WorkcenterSelect.Name = "WorkcenterSelect";
             WorkcenterSelect.Size = new Size(250, 42);
             WorkcenterSelect.TabIndex = 2;
@@ -221,7 +221,7 @@
             // WorkcenterGroupSelect
             // 
             WorkcenterGroupSelect.Font = new Font("Microsoft YaHei UI", 11F);
-            WorkcenterGroupSelect.Location = new Point(304, -1);
+            WorkcenterGroupSelect.Location = new Point(283, -1);
             WorkcenterGroupSelect.Name = "WorkcenterGroupSelect";
             WorkcenterGroupSelect.Size = new Size(250, 42);
             WorkcenterGroupSelect.TabIndex = 1;
@@ -232,7 +232,7 @@
             DispathchDatePickerRange.Font = new Font("Microsoft YaHei UI", 11F);
             DispathchDatePickerRange.Location = new Point(3, -1);
             DispathchDatePickerRange.Name = "DispathchDatePickerRange";
-            DispathchDatePickerRange.Size = new Size(300, 42);
+            DispathchDatePickerRange.Size = new Size(280, 42);
             DispathchDatePickerRange.TabIndex = 0;
             DispathchDatePickerRange.TextAlign = HorizontalAlignment.Center;
             // 
@@ -346,7 +346,7 @@
             confLabel.Font = new Font("Microsoft YaHei UI", 12F);
             confLabel.Location = new Point(0, 33);
             confLabel.Name = "confLabel";
-            confLabel.Size = new Size(220, 27);
+            confLabel.Size = new Size(220, 22);
             confLabel.TabIndex = 0;
             confLabel.Text = "  报工数量：";
             // 
@@ -358,7 +358,7 @@
             panel4.Location = new Point(405, 148);
             panel4.Name = "panel4";
             tableLayoutPanel1.SetRowSpan(panel4, 3);
-            panel4.Size = new Size(300, 299);
+            panel4.Size = new Size(300, 413);
             panel4.TabIndex = 3;
             panel4.Text = "panel4";
             // 
@@ -375,7 +375,7 @@
             tableLayoutPanel4.RowCount = 2;
             tableLayoutPanel4.RowStyles.Add(new RowStyle(SizeType.Absolute, 35F));
             tableLayoutPanel4.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
-            tableLayoutPanel4.Size = new Size(300, 299);
+            tableLayoutPanel4.Size = new Size(300, 413);
             tableLayoutPanel4.TabIndex = 0;
             // 
             // label4
@@ -395,7 +395,7 @@
             panel13.Dock = DockStyle.Fill;
             panel13.Location = new Point(3, 38);
             panel13.Name = "panel13";
-            panel13.Size = new Size(294, 258);
+            panel13.Size = new Size(294, 372);
             panel13.TabIndex = 1;
             panel13.Text = "panel13";
             // 
@@ -407,7 +407,7 @@
             ConfTable.Gap = 12;
             ConfTable.Location = new Point(0, 0);
             ConfTable.Name = "ConfTable";
-            ConfTable.Size = new Size(294, 258);
+            ConfTable.Size = new Size(294, 372);
             ConfTable.TabIndex = 0;
             ConfTable.Text = "table1";
             // 
@@ -419,7 +419,7 @@
             panel5.Location = new Point(711, 148);
             panel5.Name = "panel5";
             tableLayoutPanel1.SetRowSpan(panel5, 3);
-            panel5.Size = new Size(237, 299);
+            panel5.Size = new Size(237, 413);
             panel5.TabIndex = 4;
             panel5.Text = "panel5";
             // 
@@ -439,7 +439,7 @@
             tableLayoutPanel3.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
             tableLayoutPanel3.RowStyles.Add(new RowStyle(SizeType.Absolute, 100F));
             tableLayoutPanel3.RowStyles.Add(new RowStyle(SizeType.Absolute, 20F));
-            tableLayoutPanel3.Size = new Size(237, 299);
+            tableLayoutPanel3.Size = new Size(237, 413);
             tableLayoutPanel3.TabIndex = 0;
             // 
             // label5
@@ -456,13 +456,13 @@
             // panel10
             // 
             panel10.Controls.Add(label7);
-            panel10.Controls.Add(inputNumber2);
+            panel10.Controls.Add(ScrapInputNumber);
             panel10.Controls.Add(label6);
             panel10.Controls.Add(ConfInputNumber);
             panel10.Dock = DockStyle.Fill;
             panel10.Location = new Point(3, 38);
             panel10.Name = "panel10";
-            panel10.Size = new Size(231, 158);
+            panel10.Size = new Size(231, 272);
             panel10.TabIndex = 5;
             panel10.Text = "panel10";
             // 
@@ -476,15 +476,15 @@
             label7.TabIndex = 2;
             label7.Text = "   报废数量：";
             // 
-            // inputNumber2
+            // ScrapInputNumber
             // 
-            inputNumber2.Font = new Font("Microsoft YaHei UI", 11F);
-            inputNumber2.Location = new Point(0, 107);
-            inputNumber2.Name = "inputNumber2";
-            inputNumber2.Size = new Size(228, 48);
-            inputNumber2.TabIndex = 3;
-            inputNumber2.Text = "0";
-            inputNumber2.TextAlign = HorizontalAlignment.Right;
+            ScrapInputNumber.Font = new Font("Microsoft YaHei UI", 11F);
+            ScrapInputNumber.Location = new Point(0, 107);
+            ScrapInputNumber.Name = "ScrapInputNumber";
+            ScrapInputNumber.Size = new Size(228, 48);
+            ScrapInputNumber.TabIndex = 3;
+            ScrapInputNumber.Text = "0";
+            ScrapInputNumber.TextAlign = HorizontalAlignment.Right;
             // 
             // label6
             // 
@@ -512,7 +512,7 @@
             panel12.Controls.Add(ResetButton);
             panel12.Controls.Add(SubmitButton);
             panel12.Dock = DockStyle.Fill;
-            panel12.Location = new Point(3, 202);
+            panel12.Location = new Point(3, 316);
             panel12.Name = "panel12";
             panel12.Size = new Size(231, 94);
             panel12.TabIndex = 7;
@@ -545,7 +545,7 @@
             // 
             AutoScaleDimensions = new SizeF(7F, 17F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(951, 450);
+            ClientSize = new Size(951, 564);
             Controls.Add(tableLayoutPanel1);
             Name = "WorkOrderReportInspectionForm";
             tableLayoutPanel1.ResumeLayout(false);
@@ -594,7 +594,7 @@
         private AntdUI.Label label6;
         private AntdUI.InputNumber ConfInputNumber;
         private AntdUI.Label label7;
-        private AntdUI.InputNumber inputNumber2;
+        private AntdUI.InputNumber ScrapInputNumber;
         private AntdUI.Panel panel12;
         private AntdUI.Button ResetButton;
         private AntdUI.Button SubmitButton;

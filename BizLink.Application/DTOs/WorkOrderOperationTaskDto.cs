@@ -42,17 +42,23 @@ namespace BizLink.MES.Application.DTOs
             get; set;
         }
 
-        public int? WorkCenterId
+        public string? WorkCenterCode
         {
             get; set;
         }
 
-        public DateTime? StartTime
+        public DateTime? DispatchDate
         {
             get; set;
         }
 
-        public DateTime? EndTime
+
+        public DateTime? ActualStartTime
+        {
+            get; set;
+        }
+
+        public DateTime? ActualEndTime
         {
             get; set;
         }
@@ -122,20 +128,17 @@ namespace BizLink.MES.Application.DTOs
             get; set;
         }
 
-        public int? WorkCenterId
+        public string? WorkCenterCode
         {
             get; set;
         }
 
-        public DateTime? StartTime
+
+        public DateTime? DispatchDate
         {
             get; set;
         }
 
-        public DateTime? EndTime
-        {
-            get; set;
-        }
 
         public decimal? CompletedQuantity
         {
@@ -169,42 +172,28 @@ namespace BizLink.MES.Application.DTOs
             get; set;
         }
 
-        public int? WorkOrderId
-        {
-            get; set;
-        }
-
-        public string? WorkOrderNo
-        {
-            get; set;
-        }
-
-        public int? WorkOrderProcessId
-        {
-            get; set;
-        }
-
-        public string? Operation
-        {
-            get; set;
-        }
-
         public decimal? Quantity
         {
             get; set;
         }
 
-        public int? WorkCenterId
+        public string? WorkCenterCode
         {
             get; set;
         }
 
-        public DateTime? StartTime
+        public DateTime?DispatchDate
         {
             get; set;
         }
 
-        public DateTime? EndTime
+
+        public DateTime? ActualStartTime
+        {
+            get; set;
+        }
+
+        public DateTime? ActualEndTime
         {
             get; set;
         }

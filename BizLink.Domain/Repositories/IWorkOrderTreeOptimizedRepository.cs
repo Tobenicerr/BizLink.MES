@@ -11,5 +11,6 @@ namespace BizLink.MES.Domain.Repositories
 {
     public interface IWorkOrderTreeOptimizedRepository : IGenericRepository<V_WorkOrderTreeOptimized>
     {
+        Task<List<V_WorkOrderTreeOptimized>> GetReceipetWorkOrderAsync(int factoryId, DateTime? startDate, DateTime? endDate, string? workCenter);
     }
 }

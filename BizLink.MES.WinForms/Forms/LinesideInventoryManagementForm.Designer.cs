@@ -30,7 +30,7 @@
         {
             tableLayoutPanel1 = new TableLayoutPanel();
             panel1 = new AntdUI.Panel();
-            sapSyncButton = new AntdUI.Button();
+            MaterialInput = new AntdUI.Input();
             exportButton = new AntdUI.Button();
             stockCreateButton = new AntdUI.Button();
             label1 = new AntdUI.Label();
@@ -39,6 +39,7 @@
             locationSelectMultiple = new AntdUI.SelectMultiple();
             keyboardInput = new AntdUI.Input();
             panel2 = new AntdUI.Panel();
+            sapSyncButton = new AntdUI.Button();
             stockTable = new AntdUI.Table();
             tableLayoutPanel1.SuspendLayout();
             panel1.SuspendLayout();
@@ -65,6 +66,7 @@
             // 
             panel1.BackColor = Color.White;
             panel1.Controls.Add(sapSyncButton);
+            panel1.Controls.Add(MaterialInput);
             panel1.Controls.Add(exportButton);
             panel1.Controls.Add(stockCreateButton);
             panel1.Controls.Add(label1);
@@ -80,24 +82,20 @@
             panel1.TabIndex = 0;
             panel1.Text = "panel1";
             // 
-            // sapSyncButton
+            // MaterialInput
             // 
-            sapSyncButton.Anchor = AnchorStyles.Right;
-            sapSyncButton.Font = new Font("Microsoft YaHei UI", 11F);
-            sapSyncButton.Location = new Point(692, 3);
-            sapSyncButton.Name = "sapSyncButton";
-            sapSyncButton.Size = new Size(87, 40);
-            sapSyncButton.TabIndex = 7;
-            sapSyncButton.Text = "SAP同步";
-            sapSyncButton.Type = AntdUI.TTypeMini.Error;
-            sapSyncButton.Visible = false;
-            sapSyncButton.Click += sapSyncButton_Click;
+            MaterialInput.Font = new Font("Microsoft YaHei UI", 11F);
+            MaterialInput.Location = new Point(359, 0);
+            MaterialInput.Multiline = true;
+            MaterialInput.Name = "MaterialInput";
+            MaterialInput.Size = new Size(180, 45);
+            MaterialInput.TabIndex = 7;
             // 
             // exportButton
             // 
             exportButton.Anchor = AnchorStyles.Right;
             exportButton.Font = new Font("Microsoft YaHei UI", 11F);
-            exportButton.Location = new Point(782, 3);
+            exportButton.Location = new Point(789, 1);
             exportButton.Name = "exportButton";
             exportButton.Size = new Size(87, 40);
             exportButton.TabIndex = 6;
@@ -109,7 +107,7 @@
             // 
             stockCreateButton.Anchor = AnchorStyles.Right;
             stockCreateButton.Font = new Font("Microsoft YaHei UI", 11F);
-            stockCreateButton.Location = new Point(870, 3);
+            stockCreateButton.Location = new Point(875, 1);
             stockCreateButton.Name = "stockCreateButton";
             stockCreateButton.Size = new Size(87, 40);
             stockCreateButton.TabIndex = 5;
@@ -120,7 +118,7 @@
             // label1
             // 
             label1.Anchor = AnchorStyles.Left;
-            label1.Location = new Point(375, 9);
+            label1.Location = new Point(543, 9);
             label1.Name = "label1";
             label1.Size = new Size(53, 24);
             label1.TabIndex = 4;
@@ -131,7 +129,7 @@
             quantitySwitch.Anchor = AnchorStyles.Left;
             quantitySwitch.Checked = true;
             quantitySwitch.CheckedText = "是";
-            quantitySwitch.Location = new Point(434, 4);
+            quantitySwitch.Location = new Point(602, 4);
             quantitySwitch.Name = "quantitySwitch";
             quantitySwitch.Size = new Size(63, 35);
             quantitySwitch.TabIndex = 3;
@@ -141,7 +139,7 @@
             // queryButton
             // 
             queryButton.Font = new Font("Microsoft YaHei UI", 11F);
-            queryButton.Location = new Point(503, 3);
+            queryButton.Location = new Point(662, 1);
             queryButton.Name = "queryButton";
             queryButton.Size = new Size(60, 40);
             queryButton.TabIndex = 2;
@@ -152,17 +150,17 @@
             // locationSelectMultiple
             // 
             locationSelectMultiple.Font = new Font("Microsoft YaHei UI", 11F);
-            locationSelectMultiple.Location = new Point(189, 3);
+            locationSelectMultiple.Location = new Point(181, 0);
             locationSelectMultiple.Name = "locationSelectMultiple";
-            locationSelectMultiple.Size = new Size(180, 40);
+            locationSelectMultiple.Size = new Size(180, 45);
             locationSelectMultiple.TabIndex = 1;
             // 
             // keyboardInput
             // 
             keyboardInput.Font = new Font("Microsoft YaHei UI", 11F);
-            keyboardInput.Location = new Point(3, 3);
+            keyboardInput.Location = new Point(3, 0);
             keyboardInput.Name = "keyboardInput";
-            keyboardInput.Size = new Size(180, 40);
+            keyboardInput.Size = new Size(180, 45);
             keyboardInput.TabIndex = 0;
             // 
             // panel2
@@ -174,6 +172,19 @@
             panel2.Size = new Size(966, 517);
             panel2.TabIndex = 1;
             panel2.Text = "panel2";
+            // 
+            // sapSyncButton
+            // 
+            sapSyncButton.Anchor = AnchorStyles.Right;
+            sapSyncButton.Font = new Font("Microsoft YaHei UI", 11F);
+            sapSyncButton.Location = new Point(716, 1);
+            sapSyncButton.Name = "sapSyncButton";
+            sapSyncButton.Size = new Size(87, 40);
+            sapSyncButton.TabIndex = 7;
+            sapSyncButton.Text = "SAP同步";
+            sapSyncButton.Type = AntdUI.TTypeMini.Error;
+            sapSyncButton.Visible = false;
+            sapSyncButton.Click += sapSyncButton_Click;
             // 
             // stockTable
             // 
@@ -221,5 +232,6 @@
         private AntdUI.Button stockCreateButton;
         private AntdUI.Button exportButton;
         private AntdUI.Button sapSyncButton;
+        private AntdUI.Input MaterialInput;
     }
 }

@@ -45,6 +45,12 @@ namespace BizLink.MES.Application.Services
             throw new NotImplementedException();
         }
 
+        public async Task<List<WorkOrderTreeOptimizedDto>> GetReceipetWorkOrderAsync(int factoryId, DateTime? startDate, DateTime? endDate, string? workCenter)
+        {
+            var entities = await _workOrderTreeOptimizedRepository.GetReceipetWorkOrderAsync(factoryId, startDate, endDate, workCenter);
+            return _mapper.Map<List<WorkOrderTreeOptimizedDto>>(entities);
+        }
+
         public Task<bool> UpdateAsync(WorkOrderTreeOptimizedUpdateDto updateDto)
         {
             throw new NotImplementedException();

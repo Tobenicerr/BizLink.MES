@@ -1,7 +1,9 @@
 ﻿using BizLink.MES.Application.DTOs;
+using BizLink.MES.Application.DTOs.Response;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
+using System.DirectoryServices.Protocols;
 using System.Linq;
 using System.Net.Http.Json;
 using System.Text;
@@ -10,7 +12,7 @@ using System.Threading.Tasks;
 
 namespace BizLink.MES.Application.ApiClient
 {
-    public class ApiClient : IApiClient, IMesApiClient, IJyApiClient
+    public class ApiClient : IApiClient, IMesApiClient, IJyApiClient,IBartApiClient
     {
         private readonly HttpClient _httpClient;
 
@@ -121,6 +123,88 @@ namespace BizLink.MES.Application.ApiClient
             }
         }
 
+        public async Task<ApiResponse<T>> WmsPostAsync<T>(string requestUri, string jsonstr)
+        {
+            try
+            {
+                var content = new StringContent(jsonstr, Encoding.UTF8, "application/json");
+                var wmsResult = await _httpClient.PostAsync(requestUri, content);
+                string jsonString = await wmsResult.Content.ReadAsStringAsync();
+
+                // 1. 防坑：先检查 HTTP 请求本身是否成功 (比如有没有报 404, 500)
+                if (!wmsResult.IsSuccessStatusCode)
+                {
+                    return new ApiResponse<T>
+                    {
+                        IsSuccess = false,
+                        Message = $"WMS接口异常, 状态码: {(int)wmsResult.StatusCode}, 详情: {jsonString}",
+                        Data = default // 泛型的默认值
+                    };
+                }
+
+                // 2. 将 JSON 字符串反序列化为对方的真实结构 T
+                T wmsData = JsonConvert.DeserializeObject<T>(jsonString);
+
+                // 3. 将真实结构 T 包装到你系统的 ApiResponse<T> 中
+                return new ApiResponse<T>
+                {
+                    IsSuccess = true,      // 代表接口通信成功 (注意：具体的业务成功需要调用方去判断 Data 里面的 Result)
+                    Message = "请求成功",
+                    Data = wmsData         // 把反序列化好的对象塞进 Data 里
+                };
+            }
+            catch (Exception ex)
+            {
+                // 捕获网络超时、反序列化失败等异常
+                return new ApiResponse<T>
+                {
+                    IsSuccess = false,
+                    Message = $"请求发生异常: {ex.Message}",
+                    Data = default
+                };
+            }
+        }
+
+        /// <summary>
+        /// 发送 XML 请求 (直接传入 XML 字符串)
+        /// 适用于：你已经拼好了 XML 字符串，或者需要读取 XML 文件内容直接发送
+        /// </summary>
+        public async Task<TResponse> PostXmlAsync<TResponse>(string requestUri, string xmlContent)
+        {
+            try
+            {
+                // 核心：设置 Content-Type 为 application/xml
+                var content = new StringContent(xmlContent, Encoding.UTF8, "application/xml");
+
+                var response = await _httpClient.PostAsync(requestUri, content);
+
+                var jsonString =  await response.Content.ReadAsStringAsync();
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    throw new HttpRequestException($"API 请求失败 [Code:{(int)response.StatusCode}]: {jsonString}");
+                }
+
+                // 5. 处理空响应的情况
+                if (string.IsNullOrWhiteSpace(jsonString))
+                {
+                    return default(TResponse);
+                }
+
+                // 6. 反序列化
+                var options = new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                };
+
+                return System.Text.Json.JsonSerializer.Deserialize<TResponse>(jsonString, options);
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"PostXmlAsync 调用异常 ({requestUri}): {ex.Message}", ex);
+            }
+        }
+
         public async Task<ApiResponse<TResponse>> UploadFileAsync<TResponse>(string url, string filePath, Dictionary<string, string> additionalFormData = null)
         {
             try
@@ -149,16 +233,20 @@ namespace BizLink.MES.Application.ApiClient
                     // C. 发送请求
                     var response = await _httpClient.PostAsync(url, content);
 
-                    // 处理结果 (复用您现有的反序列化逻辑)
-                    var responseString = await response.Content.ReadAsStringAsync();
-                    if (response.IsSuccessStatusCode)
-                    {
-                        // 假设您的后端返回标准 ApiResponse 结构
-                        // 如果后端直接返回对象，这里需要调整反序列化逻辑
-                        return JsonConvert.DeserializeObject<ApiResponse<TResponse>>(responseString);
-                    }
+                    return await HandleResponse<TResponse>(response);
 
-                    return new ApiResponse<TResponse> { IsSuccess = false, Message = $"上传失败: {response.ReasonPhrase}" };
+
+                    //// 处理结果 (复用您现有的反序列化逻辑)
+                    //var responseString = await response.Content.ReadAsStringAsync();
+                    //if (response.IsSuccessStatusCode)
+                    //{
+                    //    // 假设您的后端返回标准 ApiResponse 结构
+                    //    // 如果后端直接返回对象，这里需要调整反序列化逻辑
+                    //    return JsonConvert.DeserializeObject<ApiResponse<TResponse>>(responseString);
+
+                    //    return await HandleResponse<T>(response);
+                    //}
+
                 }
             }
             catch (Exception ex)

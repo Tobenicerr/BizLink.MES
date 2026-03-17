@@ -152,5 +152,11 @@ namespace BizLink.MES.Application.Services
             var entities = await _userRepository.GetByEmployeeIdAsync(employeeIds);
             return _mapper.Map<List<UserDto>>(entities);
         }
+
+        public async Task<List<UserDto>> GetListByFactoryIdAsync(int factoryId)
+        {
+            var entities = await _userRepository.GetListByFactoryIdAsync(factoryId);
+            return _mapper.Map<List<UserDto>>(entities);
+        }
     }
 }

@@ -27,6 +27,37 @@ namespace BizLink.MES.Domain.Entities
             get; set;
         }
 
+        [SugarColumn(IsIgnore = true)]
+        public string? MaterialCode
+        {
+            get; set;
+        }
+
+        [SugarColumn(IsIgnore = true)]
+        public string? MaterialDesc
+        {
+            get; set;
+        }
+
+        [SugarColumn(IsIgnore = true)]
+        public string? ProfitCenter
+        {
+            get; set;
+        }
+
+        [SugarColumn(IsIgnore = true)]
+        public string? StorageLocation
+        {
+            get; set;
+        }
+
+        [SugarColumn(IsIgnore = true)]
+        public DateTime? DispatchDate
+        {
+            get;
+            set;
+        } 
+
         [SugarColumn(IsNullable = true)]
         public int? ConfirmNo
         {
@@ -34,13 +65,25 @@ namespace BizLink.MES.Domain.Entities
         }
 
         [SugarColumn(IsNullable = true)]
-        public string? Status { get; set; } // 工序状态
+        public string? Status 
+        { 
+            get; 
+            set; 
+        } // 工序状态
 
         [SugarColumn(IsNullable = true)]
-        public DateTime? StartTime { get; set; } // 计划开始时间
+        public DateTime? StartTime 
+        { 
+            get; 
+            set; 
+        } // 计划开始时间
 
         [SugarColumn(IsNullable = true)]
-        public DateTime? EndTime { get; set; } // 计划结束时间
+        public DateTime? EndTime 
+        { 
+            get; 
+            set; 
+        } // 计划结束时间
 
         [SugarColumn(IsNullable = true)]
         public decimal? Quantity
@@ -55,7 +98,11 @@ namespace BizLink.MES.Domain.Entities
         }  = 0; // 完成数量
 
         [SugarColumn(IsNullable = true)]
-        public DateTime? ActStartTime { get; set; } // 实际开始时间
+        public DateTime? ActStartTime 
+        { 
+            get; 
+            set; 
+        } // 实际开始时间
 
         [SugarColumn(IsNullable = true)]
         public DateTime? ActEndTime { get; set; } // 实际结束时间

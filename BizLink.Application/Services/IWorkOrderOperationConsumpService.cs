@@ -18,5 +18,10 @@ namespace BizLink.MES.Application.Services
         Task<bool> UpdateAsync(List<WorkOrderOperationConsumpUpdateDto> updateDtos);
 
         Task<List<WorkOrderOperationConsumpDto>> GetListByProcessIdAsync(int processid);
+
+        Task<List<WorkOrderOperationConsumpDto>> GetListByProcessIdAsync(List<int> processid);
+
+
+        Task<List<WorkOrderOperationConsumpDto>> GetListByConfirmIdsAsync(List<int> confirmIds);
     }
 }

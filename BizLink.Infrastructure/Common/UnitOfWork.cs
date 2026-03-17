@@ -12,233 +12,76 @@ namespace BizLink.MES.Domain.Common
 {
     public class UnitOfWork : IUnitOfWork, IAsyncDisposable, IDisposable
     {
-        private readonly IDbClientFactory _dbClientFactory;
-        private readonly ConcurrentDictionary<string, ISqlSugarClient> _activeClients;
-        private volatile bool _isDisposed;
+        // 注入的 SqlSugarClient 必须是 Scoped (WebAPI) 或在 Scope 中创建 (WinForms)
+        // 且初始化时必须传入 List<ConnectionConfig> 以支持多库
+        private readonly ISqlSugarClient _db;
+        private bool _hasActiveTransaction;
 
-        // 状态管理
-        private volatile bool _isTransactionActive;
-        private volatile bool _isTransactionCompleted;
-
-        public UnitOfWork(IDbClientFactory dbClientFactory)
+        public UnitOfWork(ISqlSugarClient db)
         {
-            _dbClientFactory = dbClientFactory;
-            _activeClients = new ConcurrentDictionary<string, ISqlSugarClient>();
+            _db = db;
         }
 
-        public ISqlSugarClient DbClient => GetDbClient();
+        // 1. 获取默认数据库连接
+        public ISqlSugarClient DbClient => _db;
 
-        public ISqlSugarClient GetDbClient(string configId = "Default")
+        // 2. 获取指定 ConfigId 的数据库连接 (多库支持)
+        // 官方文档：自动换库 -> 通过 ConfigId 获取对应的 Client
+        public ISqlSugarClient GetDbClient(string configId)
         {
-            if (_isDisposed)
-                throw new ObjectDisposedException(nameof(UnitOfWork));
-
-            // 1. 获取或创建 Client
-            var client = _activeClients.GetOrAdd(configId, (key) =>
-            {
-                return _dbClientFactory.GetDbClient(key);
-            });
-
-            // 2. 【关键】延迟加入事务逻辑
-            // 如果 UoW 认为当前应该在事务中，但该 Client 还没开启事务，则强制开启
-            if (_isTransactionActive && !_isTransactionCompleted)
-            {
-                // 乐观检查：SqlSugarClient 的 Ado.Transaction 为 null 表示未开启
-                if (client.Ado.Transaction == null)
-                {
-                    lock (client)
-                    {
-                        if (client.Ado.Transaction == null)
-                        {
-                            try
-                            {
-                                client.Ado.BeginTran();
-                            }
-                            catch (Exception ex)
-                            {
-                                // 这里的异常通常是因为 SqlSugarClient 被多线程并发使用了
-                                throw new InvalidOperationException($"无法为配置 '{configId}' 挂载事务。请确保不要在多线程中并发使用同一个 DbClient 实例。", ex);
-                            }
-                        }
-                    }
-                }
-            }
-
-            return client;
+            // AsTenant() 是 SqlSugar 处理多租户/多库的核心入口
+            // GetConnection(configId) 会自动切换到对应的库，且如果事务已开启，会自动加入事务
+            return _db.AsTenant().GetConnection(configId);
         }
 
         public async Task BeginTransactionAsync()
         {
-            if (_isDisposed)
-                throw new ObjectDisposedException(nameof(UnitOfWork));
-
-            // 防止重复开启
-            if (_isTransactionActive)
-            {
-                return;
-                // 或者抛出异常：throw new InvalidOperationException("Transaction already started.");
-            }
-
-            // 防止复用已完成的 UoW（重要！避免状态混乱）
-            if (_isTransactionCompleted)
-            {
-                throw new InvalidOperationException("Cannot restart a transaction on a completed UnitOfWork. Please create a new Scope/UnitOfWork.");
-            }
-
-            // 开启当前已存在的 Client 的事务
-            foreach (var client in _activeClients.Values)
-            {
-                if (client.Ado.Transaction == null)
-                {
-                    await client.Ado.BeginTranAsync();
-                }
-            }
-
-            _isTransactionActive = true;
+            // 官方文档：事务嵌套/多库事务
+            // 使用 AsTenant().BeginTran() 可以同时开启主库和所有从库的事务上下文
+            // 这样无论后续 Repository 操作哪个库，只要是在同一个 Scope 内，都会受此事务控制
+            await _db.AsTenant().BeginTranAsync();
         }
 
         public async Task CommitAsync()
         {
-            if (_isDisposed)
-                throw new ObjectDisposedException(nameof(UnitOfWork));
-
-            // 如果事务没开启或者已经完成了，直接报错
-            if (!_isTransactionActive || _isTransactionCompleted)
-            {
-                throw new InvalidOperationException("No active transaction to commit.");
-            }
-
             try
             {
-                // 提交所有连接
-                // 【警告】如果涉及多个不同库的 Client，这里非强一致性事务。如果第2个失败，第1个无法回滚。
-                foreach (var client in _activeClients.Values)
-                {
-                    if (client.Ado.Transaction != null)
-                    {
-                        await client.Ado.CommitTranAsync();
-                    }
-                }
+                // 提交所有库的事务
+                await _db.AsTenant().CommitTranAsync();
             }
-            catch (Exception commitEx)
+            catch
             {
-                // 提交失败，尝试回滚（Best Effort）
-                try
-                {
-                    await RollbackInternalAsync();
-                }
-                catch (Exception rollbackEx)
-                {
-                    // 记录聚合异常，方便排查
-                    throw new AggregateException("Transaction Commit failed, and subsequent Rollback also failed.", commitEx, rollbackEx);
-                }
-                throw; // 抛出原始提交异常
-            }
-            finally
-            {
-                // 标记为完成，禁止后续操作
-                _isTransactionCompleted = true;
-                // _isTransactionActive = false; // 保持为 true 或 false 均可，依靠 Completed 标记来阻断
+                // 提交失败则回滚
+                await _db.AsTenant().RollbackTranAsync();
+                throw;
             }
         }
 
         public async Task RollbackAsync()
         {
-            if (_isDisposed)
-                throw new ObjectDisposedException(nameof(UnitOfWork));
-
-            // 如果事务没开启，或者已经完成了，无需回滚
-            if (!_isTransactionActive || _isTransactionCompleted)
-            {
-                return;
-            }
-
-            try
-            {
-                await RollbackInternalAsync();
-            }
-            finally
-            {
-                _isTransactionCompleted = true;
-            }
+            // 回滚所有库的事务
+            await _db.AsTenant().RollbackTranAsync();
         }
 
-        private async Task RollbackInternalAsync()
+        public void Dispose()
         {
-            var exceptions = new List<Exception>();
-
-            foreach (var client in _activeClients.Values)
+            // 官方文档：禁止用 db.Rollback，工作单元内只要 throw 会自动回滚
+            // 但在我们封装的模式下，为了安全起见，Dispose 时如果事务未提交，执行回滚
+            // 使用本地标记替代 _db.AsTenant().IsAnyTran
+            if (_hasActiveTransaction)
             {
-                try
-                {
-                    if (client.Ado.Transaction != null)
-                    {
-                        await client.Ado.RollbackTranAsync();
-                    }
-                }
-                catch (Exception ex)
-                {
-                    // 忽略连接已关闭等无效状态错误，但记录其他错误
-                    var msg = ex.Message.ToLower();
-                    if (!msg.Contains("completed") && !msg.Contains("closed") && !msg.Contains("zombie"))
-                    {
-                        exceptions.Add(ex);
-                    }
-                }
-            }
-
-            if (exceptions.Any())
-            {
-                throw new AggregateException("Rollback failed with unexpected errors.", exceptions);
+                _db.AsTenant().RollbackTran();
+                _hasActiveTransaction = false;
             }
         }
 
         public async ValueTask DisposeAsync()
         {
-            if (_isDisposed)
-                return;
-
-            // 自动回滚未提交的事务
-            if (_isTransactionActive && !_isTransactionCompleted)
+            if (_hasActiveTransaction)
             {
-                try
-                {
-                    await RollbackInternalAsync();
-                }
-                catch { /* 吞掉 Dispose 中的异常 */ }
+                await _db.AsTenant().RollbackTranAsync();
+                _hasActiveTransaction = false;
             }
-
-            _activeClients.Clear();
-            _isDisposed = true;
-            GC.SuppressFinalize(this);
-        }
-
-        public void Dispose()
-        {
-            if (_isDisposed)
-                return;
-
-            if (_isTransactionActive && !_isTransactionCompleted)
-            {
-                try
-                {
-                    // 同步回滚逻辑
-                    foreach (var client in _activeClients.Values)
-                    {
-                        try
-                        {
-                            if (client.Ado.Transaction != null)
-                                client.Ado.RollbackTran();
-                        }
-                        catch { }
-                    }
-                }
-                catch { }
-            }
-
-            _activeClients.Clear();
-            _isDisposed = true;
-            GC.SuppressFinalize(this);
         }
     }
 }

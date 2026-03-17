@@ -14,6 +14,7 @@ namespace BizLink.MES.Application.Services
 
         Task<WorkOrderOperationConfirmDto> GetConfirmWitemConsumeptionAsync(int confirmid);
 
+        Task<List<WorkOrderOperationConfirmDto>> GetConfirmWitemConsumeptionAsync(List<int> confirmids);
         Task<PagedResultDto<WorkOrderOperationConfirmDto>> GetOperationConfirmPageListAsync(int pageIndex, int pageSize, List<string>? orders, string? status, List<string>? operation);
 
         Task<List<WorkOrderOperationConfirmDto>> GetListByProcessIdAsync(int processid);

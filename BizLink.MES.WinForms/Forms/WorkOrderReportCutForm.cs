@@ -112,11 +112,19 @@ namespace BizLink.MES.WinForms.Forms
                 if (_workOrderTaskDto == null)
                     throw new Exception("请先选择一笔订单后再进入生产！");
 
+
+                if (_workOrderTaskDto.Status == ((int)WorkOrderStatus.Paused).ToString()) 
+                {
+
+                    var process = await _facade.WorkOrderProcessService.GetByIdAsync(_workOrderTaskDto.OrderProcessId);
+                    if(process != null && process.Status == ((int)WorkOrderStatus.Finished).ToString())
+                        throw new Exception("断线任务已挂起，无法继续报工，请手动关闭当前断线任务");
+
+                }
+
                 // --- 业务逻辑 ---
                 var taskDto = await GetOrCreateTaskAsync(_workOrderTaskDto);
 
-                if (taskDto.Status == ((int)WorkOrderStatus.Paused).ToString())
-                    throw new Exception("断线任务已挂起，无法继续报工，请手动关闭当前断线任务");
 
                 if (taskDto?.CableLength == null || taskDto.CableLength <= 0)
                     throw new Exception("断线长度错误，请先维护断线参数或指定替代物料！");

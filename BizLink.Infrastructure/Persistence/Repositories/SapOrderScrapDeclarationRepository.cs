@@ -42,10 +42,12 @@ namespace BizLink.MES.Infrastructure.Persistence.Repositories
             }
         }
 
-        public async Task<(List<SapOrderScrapDeclaration>, int)> GetPageListAsync(int pageIndex, int pageSize, string factoryCode, string? keyword, DateTime? createdDate)
+        public async Task<(List<SapOrderScrapDeclaration>, int)> GetPageListAsync(int pageIndex, int pageSize, string factoryCode, string? keyword, DateTime? startDate, DateTime? endDate)
         {
             var query = _db.Queryable<SapOrderScrapDeclaration>().Where(s => s.FactoryCode == factoryCode && s.IsActive).WhereIF(!string.IsNullOrWhiteSpace(keyword),s => s.WorkOrderNo.Contains(keyword) || s.WorkCenterCode.Contains(keyword) || s.ScrapMaterialCode.Contains(keyword) || s.CreatedBy.Contains(keyword))
-                .WhereIF(createdDate != null, s => ((DateTime)s.CreatedOn).Date == ((DateTime)createdDate).Date).OrderByDescending(s => s.Id);
+                .WhereIF(startDate != null, s => s.CreatedOn >= startDate)
+                .WhereIF(endDate != null, s => s.CreatedOn <= endDate)
+                .OrderByDescending(s => s.Id);
 
             var count = await query.CountAsync();
             var list = await query.ToPageListAsync(pageIndex, pageSize);

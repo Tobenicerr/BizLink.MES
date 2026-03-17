@@ -32,5 +32,8 @@ namespace BizLink.MES.Domain.Enums
         [Description("成本中心退料")]
         ReversalofGoodsIssuetoCostCenter = 202,
 
+        [Description("成本中心退料")]
+        FinishedGoodsReceipt = 901,
+
     }
 }

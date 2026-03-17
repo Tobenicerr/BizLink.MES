@@ -16,6 +16,8 @@ namespace BizLink.MES.Domain.Repositories
 
         Task<List<WorkOrderTaskConfirm>> GetListByTaskIdAsync(int taskid);
 
+        Task<List<WorkOrderTaskConfirm>> GetListByTaskIdAsync(List<int> taskids);
+
         Task<List<WorkOrderTaskConfirm>> GetListByOrderNoAsync(string orderno);
 
         Task<List<int>> BatchAddAsync(List<WorkOrderTaskConfirm> input);

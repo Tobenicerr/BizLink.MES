@@ -15,5 +15,22 @@ namespace BizLink.MES.Infrastructure.Persistence.Repositories
         public WorkOrderTaskExecuteConsumpRepository(IUnitOfWork unitOfWork) : base(unitOfWork)
         {
         }
+
+        public async Task<List<WorkOrderTaskExecuteConsump>> GetListByExelogIdAsync(int exeId)
+        {
+            return await _db.Queryable<WorkOrderTaskExecuteConsump>().Where(c => c.ExeLogId == exeId && c.Status =="1").ToListAsync();
+        }
+
+        public async Task<List<WorkOrderTaskExecuteConsump>> GetListByTaskIdAsync(string taskLevel, int taskId)
+        {
+            return await _db.Queryable<WorkOrderTaskExecuteConsump, WorkOrderTaskExecuteLog>((c,l) => c.ExeLogId == l.Id)
+                .Where((c, l) => l.TaskLevel == taskLevel && l.TaskId == taskId && c.Status == "1").ToListAsync();
+        }
+
+        public async Task<List<WorkOrderTaskExecuteConsump>> GetListByTaskIdAsync(string taskLevel, List<int> taskIds)
+        {
+            return await _db.Queryable<WorkOrderTaskExecuteConsump, WorkOrderTaskExecuteLog>((c, l) => c.ExeLogId == l.Id)
+                .Where((c, l) => l.TaskLevel == taskLevel && taskIds.Contains((int)l.TaskId) && c.Status == "1").ToListAsync();
+        }
     }
 }

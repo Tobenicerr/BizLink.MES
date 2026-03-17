@@ -10,5 +10,6 @@ namespace BizLink.MES.Application.Services
 {
     public interface IWorkOrderTaskExecuteLogService : IGenericService<WorkOrderTaskExecuteLogDto, WorkOrderTaskExecuteLogCreateDto, WorkOrderTaskExecuteLogUpdateDto>
     {
+        Task<List<WorkOrderTaskExecuteLogDto>> GetListByTaskIdAsync(int taskId, string TaskLevel);
     }
 }

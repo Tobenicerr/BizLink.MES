@@ -29,6 +29,8 @@ namespace BizLink.MES.WinForms.Forms
         // 数据状态
         private int? _workOrderTaskId;
         private int _stockId;
+        private int _workOrderId;
+
         private RawLinesideStockDto _rawLinesideStockDto;
         private List<WorkOrderTaskMaterialAddDto> _workOrderTaskMaterialAddDto;
 
@@ -54,12 +56,14 @@ namespace BizLink.MES.WinForms.Forms
         }
 
         // 3. 初始化数据入口 (替代构造函数传参)
-        public void InitData(int? stockId = null, int? workOrderTaskId = null)
+        public void InitData(int? stockId = null, int? workOrderTaskId = null,int? workorderId = null)
         {
             if (stockId.HasValue)
                 _stockId = stockId.Value;
             if (workOrderTaskId.HasValue)
                 _workOrderTaskId = workOrderTaskId.Value;
+            if(workorderId.HasValue)
+                _workOrderId = workorderId.Value;
         }
 
         // 4. 窗体加载
@@ -95,7 +99,7 @@ namespace BizLink.MES.WinForms.Forms
             // 1. 初始化调整类型
             var opTypes = new List<StockOperationType> { StockOperationType.AdjustStockGain, StockOperationType.AdjustStockLoss };
 
-            if (_workOrderTaskId == null)
+            if (_workOrderTaskId == null && _workOrderId == 0)
             {
                 opTypes.AddRange(new[] {
                     StockOperationType.ShipmentOfRawMaterials,
@@ -121,7 +125,7 @@ namespace BizLink.MES.WinForms.Forms
             var workorders = new List<WorkOrderDto>();
 
             // A. 从库存加载
-            if (_stockId > 0)
+            if (_stockId > 0 && (_workOrderTaskId??0) == 0 && _workOrderId == 0)
             {
                 _rawLinesideStockDto = await _facade.RawStock.GetByIdAsync(_stockId);
                 if (_rawLinesideStockDto != null)
@@ -134,7 +138,7 @@ namespace BizLink.MES.WinForms.Forms
             }
 
             // B. 从任务加载
-            if (_workOrderTaskId > 0)
+            else if (_workOrderTaskId > 0 && _stockId == 0)
             {
                 var task = await _facade.Task.GetByIdAsync(_workOrderTaskId.Value);
                 if (task != null)
@@ -151,7 +155,19 @@ namespace BizLink.MES.WinForms.Forms
                 }
             }
 
-            orderSelect.Items.AddRange(workorders.Select(x => new MenuItem { Name = x.Id.ToString(), Text = x.OrderNumber }).ToArray());
+            else if (_stockId > 0 && _workOrderId > 0) 
+            {
+                _rawLinesideStockDto = await _facade.RawStock.GetByIdAsync(_stockId);
+                if (_rawLinesideStockDto != null)
+                {
+                    PopulateStockInfo(_rawLinesideStockDto);
+                    var orders = await _facade.WorkOrderService.GetByIdAsync(_workOrderId);
+                    if (orders != null)
+                        workorders.Add(orders);
+                }
+            }
+
+                orderSelect.Items.AddRange(workorders.Select(x => new MenuItem { Name = x.Id.ToString(), Text = x.OrderNumber }).ToArray());
 
             // 3. 加载调整原因
             var parameterGroup = await _facade.Params.GetGroupWithItemsAsync(ParamGroup_CableCutScrapReason);
@@ -195,12 +211,12 @@ namespace BizLink.MES.WinForms.Forms
                 {
                     if (adjustReasonSelect.SelectedValue == null)
                     {
-                        if (AntdUI.Modal.open(this, "提示", "2100库移库调整未选择调整原因，如果需要报废物料，请重新选择报废原因，是否继续？", AntdUI.TType.Warn) != DialogResult.OK)
+                        if (AntdUI.Modal.open(this, "提示", "订单补料未选择调整原因，如果需要报废物料，请重新选择报废原因，是否继续？", AntdUI.TType.Warn) != DialogResult.OK)
                             return;
                     }
                     else
                     {
-                        if (AntdUI.Modal.open(this, "提示", "2100库移库调整选择调整原因，本次调整将报废至订单，是否继续？", AntdUI.TType.Warn) != DialogResult.OK)
+                        if (AntdUI.Modal.open(this, "提示", "订单补料未选择调整原因，本次调整将报废至订单，是否继续？", AntdUI.TType.Warn) != DialogResult.OK)
                             return;
                         opType = StockOperationType.StockLoss;
                     }
@@ -216,6 +232,9 @@ namespace BizLink.MES.WinForms.Forms
 
                 // 2. 确认
                 if (AntdUI.Modal.open(this, "提示", "即将对库存进行调整，是否继续？", AntdUI.TType.Warn) != DialogResult.OK)
+                    return;
+
+                if (changeInputNumber.Value > 20 && AntdUI.Modal.open(this, "提示", "本次调整数量已超过20M，是否继续？", AntdUI.TType.Warn) != DialogResult.OK)
                     return;
 
 

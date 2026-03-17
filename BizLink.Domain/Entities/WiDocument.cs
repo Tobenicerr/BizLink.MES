@@ -29,15 +29,22 @@ namespace BizLink.MES.Domain.Entities
             get; set;
         }
         [SugarColumn(IsNullable = true, Length = 50)]
-        public string? MaterialCode
+        public string? DocumentNo
         {
             get; set;
         }
         [SugarColumn(IsNullable = true, Length = 100)]
-        public string? MaterialDesc
+        public string? ConstructionNo
         {
             get; set;
         }
+
+        [SugarColumn(IsNullable = true, ColumnDataType = "nvarchar(100)")]
+        public string? ProcessName
+        {
+            get; set;
+        }
+
         [SugarColumn(IsNullable = true, ColumnDataType = "nvarchar(100)")]
         public string? DocVersion
         {
@@ -53,11 +60,16 @@ namespace BizLink.MES.Domain.Entities
         {
             get; set;
         }
-        [SugarColumn(IsNullable = true, Length = 10)]
+        [SugarColumn(IsNullable = true, Length = 20)]
         public string? Status
         {
             get; set;
         }
+        public bool IsActive
+        {
+            get; set;
+        } = false;
+
         [SugarColumn(IsNullable = true, ColumnDataType = "nvarchar(200)")]
         public string? Remark
         {

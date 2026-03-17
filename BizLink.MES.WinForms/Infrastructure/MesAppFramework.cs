@@ -13,6 +13,8 @@ namespace BizLink.MES.WinForms.Infrastructure
     public interface IFormFactory
     {
         void Show<TForm>(Action<TForm> setup = null, bool isModal = false) where TForm : Form;
+
+        void Show<TForm>(Action<TForm> setup = null, bool isModal = false, params object[] ctorArgs) where TForm : Form;
         void OpenDrawer<TForm>(Form parent, Action<TForm> setup = null) where TForm : Form;
     }
 
@@ -41,6 +43,34 @@ namespace BizLink.MES.WinForms.Infrastructure
                 setup?.Invoke(form);
 
                 // 窗体关闭时，只需要释放 Scope (清理 Service、DbContext)，不需要管 Form (UI 会自己销毁)
+                form.FormClosed += (s, e) => scope.Dispose();
+
+                if (isModal)
+                    form.ShowDialog();
+                else
+                    form.Show();
+            }
+            catch
+            {
+                scope.Dispose();
+                throw;
+            }
+        }
+
+        public void Show<TForm>(Action<TForm> setup = null, bool isModal = false, params object[] ctorArgs) where TForm : Form
+        {
+            var scope = _rootProvider.CreateScope();
+            try
+            {
+                // 【核心修改点】：
+                // 将 ctorArgs 传递给 CreateInstance。
+                // ActivatorUtilities 会自动智能匹配：
+                // 1. 如果构造函数参数在 ctorArgs 里找到了对应类型，就用 ctorArgs 里的值。
+                // 2. 如果没找到，就去 ServiceProvider 里找依赖注入的服务。
+                var form = ActivatorUtilities.CreateInstance<TForm>(scope.ServiceProvider, ctorArgs);
+
+                setup?.Invoke(form);
+
                 form.FormClosed += (s, e) => scope.Dispose();
 
                 if (isModal)

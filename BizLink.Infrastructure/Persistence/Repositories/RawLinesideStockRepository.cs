@@ -19,7 +19,7 @@ namespace BizLink.MES.Infrastructure.Persistence.Repositories
 
         public async Task<List<RawLinesideStock>> GetListByMaterialCodeAsync(int factoryid,string materialcode)
         {
-            return await _db.Queryable<RawLinesideStock>().LeftJoin<WorkOrderTaskMaterialAdd>((s,t) => s.BarCode == t.BarCode && t.Status == "1").Where((s, t) => s.Status == "1" && s.FactoryId == factoryid && s.MaterialCode == materialcode).Distinct().Select((s,t) => new RawLinesideStock() 
+            return await _db.Queryable<RawLinesideStock>().LeftJoin<WorkOrderTaskMaterialAdd>((s, t) => s.BarCode == t.BarCode && t.Status == "1").Where((s, t) => s.FactoryId == factoryid && s.MaterialCode == materialcode).Distinct().Select((s, t) => new RawLinesideStock()
             {
                 Id = s.Id,
                 FactoryId = s.FactoryId,
@@ -30,7 +30,7 @@ namespace BizLink.MES.Infrastructure.Persistence.Repositories
                 BatchCode = s.BatchCode,
                 Quantity = s.Quantity,
                 LastQuantity = s.LastQuantity,
-                Status = t.BarCode == null ? "1" : "2",
+                Status = t.BarCode != null  ? "2" : s.Status,
                 SapStatus = s.SapStatus,
                 LocationCode = s.LocationCode,
                 LocationId = s.LocationId,
@@ -98,6 +98,17 @@ namespace BizLink.MES.Infrastructure.Persistence.Repositories
             var list = await query.OrderBy(x => x.MaterialCode)
                 .OrderBy(x => x.BatchCode).ToPageListAsync(pageIndex, pageSize);
             return (list, totalCount);
+        }
+
+        public async Task<List<RawLinesideStock>> GetListByMaterialCodeAsync(int factoryid, string? keyword, List<string>? materialcode, List<int>? locationIds, bool usage = true)
+        {
+            return await _db.Queryable<RawLinesideStock>().Where(x => x.FactoryId == factoryid)
+                .WhereIF(!string.IsNullOrEmpty(keyword), x => x.MaterialCode.Contains(keyword) || x.BatchCode.Contains(keyword) || x.LocationCode.Contains(keyword))
+                .WhereIF(materialcode != null && materialcode.Count() > 0, x => materialcode.Contains(x.MaterialCode))
+                .WhereIF(locationIds != null && locationIds.Count() > 0, x => locationIds.Contains((int)x.LocationId))
+                .WhereIF(usage, x => x.LastQuantity > 0)
+                .WhereIF(!usage, x => x.LastQuantity <= 0)
+                .ToListAsync();
         }
     }
 }

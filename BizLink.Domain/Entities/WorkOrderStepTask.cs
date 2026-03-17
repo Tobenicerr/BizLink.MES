@@ -22,11 +22,12 @@ namespace BizLink.MES.Domain.Entities
             get; set;
         }
 
-        [SugarColumn(IsNullable = true)]
-        public int? StepId
+        [SugarColumn(IsIgnore = true)]
+        public int? WorkOrderProcessId
         {
             get; set;
         }
+
 
         [SugarColumn(IsNullable = true,Length = 50)]
         public string? StepCode
@@ -102,12 +103,24 @@ namespace BizLink.MES.Domain.Entities
         {
             get; set;
         }
+        [SugarColumn(IsNullable = true)]
+
+        public DateTime? ActualStartTime
+        {
+            get; set;
+        }
+        [SugarColumn(IsNullable = true)]
+
+        public DateTime? ActualEndTime
+        {
+            get; set;
+        }
 
         [SugarColumn(IsNullable = true)]
         public DateTime? CreatedOn
         {
             get; set;
-        }
+        } = DateTime.Now;
 
         [SugarColumn(IsNullable = true, Length = 50)]
         public string? CreatedBy

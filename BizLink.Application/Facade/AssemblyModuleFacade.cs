@@ -21,6 +21,12 @@ namespace BizLink.MES.Application.Facade
         {
             get;
         }
+
+        public IWorkTaskCategoryService WorkTaskCategory
+        { 
+            get; 
+        }
+
         public IWorkOrderInProgressViewService View
         {
             get;
@@ -52,6 +58,8 @@ namespace BizLink.MES.Application.Facade
             get;
         }
 
+        public IBartApiClient BartApiClient { get; }
+
         public AssemblyModuleFacade(
             // 1. 模块特有服务
             IWorkOrderTaskService task,
@@ -62,7 +70,8 @@ namespace BizLink.MES.Application.Facade
             ISerialHelperService serial,
             //ISapRfcService sapRfc,
             IMaterialViewService materialView,
-
+            IBartApiClient bartApiClient,
+            IWorkTaskCategoryService workTaskCategory,
             // 2. 基础服务 (透传给基类 BaseAppFacade)
             IParameterGroupService paramsService,
             IMesApiClient mesApi,
@@ -104,6 +113,8 @@ namespace BizLink.MES.Application.Facade
             Serial = serial;
             //SapRfc = sapRfc;
             MaterialView = materialView;
+            BartApiClient = bartApiClient;
+            WorkTaskCategory = workTaskCategory;
         }
     }
 }

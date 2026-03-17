@@ -44,5 +44,10 @@ namespace BizLink.MES.Infrastructure.Persistence.Repositories
         {
             return await _db.Queryable<WorkStation>().Where(x => x.WorkCenterId.Equals(workcenterid)).ToListAsync();
         }
+
+        public async Task<List<WorkStation>> GetListByWorkcenterIdAsync(List<int> workcenterIds)
+        {
+            return await _db.Queryable<WorkStation>().Where(x => workcenterIds.Contains(x.WorkCenterId)).ToListAsync();
+        }
     }
 }

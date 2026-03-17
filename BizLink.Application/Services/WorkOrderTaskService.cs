@@ -2,8 +2,10 @@
 using BizLink.MES.Application.DTOs;
 using BizLink.MES.Domain.Common;
 using BizLink.MES.Domain.Entities;
+using BizLink.MES.Domain.Enums;
 using BizLink.MES.Domain.Repositories;
 using BizLink.MES.Infrastructure.Persistence.Repositories;
+using BizLink.MES.WinForms.Common;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -21,7 +23,10 @@ namespace BizLink.MES.Application.Services
         private readonly IWorkOrderTaskMaterialAddRepository _workOrderTaskMaterialAddRepository;
         private readonly IUnitOfWork _unitOfWork;
 
+
         private readonly IMapper _mapper; // 2. 声明 IMapper
+
+
 
         public WorkOrderTaskService(IWorkOrderTaskRepository workOrderTaskRepository, IMapper mapper,IUnitOfWork unitOfWork, IWorkOrderTaskMaterialAddRepository workOrderTaskMaterialAddRepository)
         {
@@ -45,6 +50,7 @@ namespace BizLink.MES.Application.Services
             var result = await _workOrderTaskRepository.AddAsync(entity);
             return _mapper.Map<WorkOrderTaskDto>(result);
         }
+
 
         public async Task<bool> DeleteAsync(int id)
         {

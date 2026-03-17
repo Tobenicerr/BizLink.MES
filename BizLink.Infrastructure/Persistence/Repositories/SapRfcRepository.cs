@@ -35,7 +35,7 @@ namespace BizLink.MES.Infrastructure.Persistence.Repositories
 
         public async Task<WorkOrderOperationConfirm?> ConfirmOrderCompletionToSAPAsync(WorkOrderOperationConfirm confirm)
         {
-            return await Task.Run(() => 
+            return await Task.Run(() =>
             {
                 try
                 {
@@ -73,11 +73,11 @@ namespace BizLink.MES.Infrastructure.Persistence.Repositories
                     foreach (var item in semimaterialcode)
                     {
                         tSAP.Append();
-                        tSAP.CurrentRow.SetValue("SEMINUMBER", item.StartsWith('E')? item: item.PadLeft(18, '0'));
+                        tSAP.CurrentRow.SetValue("SEMINUMBER", item.StartsWith('E') ? item : item.PadLeft(18, '0'));
                     }
                     rfcFunction.Invoke(_destination);
                     return RfcTableExtensions.ToList<CableCutParam>(rfcFunction.GetTable("CUTTINGDATA"));
-   
+
                 }
                 catch (RfcCommunicationException ex) { throw new Exception("无法连接到 SAP 系统。", ex); }
                 catch (RfcLogonException ex) { throw new Exception("SAP 登录失败。", ex); }
@@ -152,7 +152,7 @@ namespace BizLink.MES.Infrastructure.Persistence.Repositories
             });
         }
 
-        public async Task<(List<SapOrderOperation> sapOperation, List<SapOrderBom> sapBom)> GetWorkOrdersAsync(string plantcode,DateTime? dispatchdate,List<string> orders = null)
+        public async Task<(List<SapOrderOperation> sapOperation, List<SapOrderBom> sapBom)> GetWorkOrdersAsync(string plantcode, DateTime? dispatchdate, List<string> orders = null)
         {
             return await Task.Run(() =>
             {
@@ -189,7 +189,7 @@ namespace BizLink.MES.Infrastructure.Persistence.Repositories
             });
         }
 
-        public async Task<(List<SapOrderOperation> sapOperation, List<SapOrderBom> sapBom)> GetCN10WorkOrdersAsync(string plantcode, DateTime? dispatchdate, List<string> workcentercode,List<string> orders = null)
+        public async Task<(List<SapOrderOperation> sapOperation, List<SapOrderBom> sapBom)> GetCN10WorkOrdersAsync(string plantcode, DateTime? dispatchdate, List<string> workcentercode, List<string> orders = null)
         {
             return await Task.Run(() =>
             {
@@ -207,7 +207,7 @@ namespace BizLink.MES.Infrastructure.Persistence.Repositories
                             tSAP.CurrentRow.SetValue("DISPATCH_DATE", dispatchdate);
                             tSAP.CurrentRow.SetValue("WORK_CENTER", workcenter);
                         }
-  
+
                     }
                     else
                     {
@@ -248,7 +248,7 @@ namespace BizLink.MES.Infrastructure.Persistence.Repositories
 
                     RfcTableExtensions.MapToRfcTable(input, tSAP);
                     rfcFunction.Invoke(_destination);
-                    var result =  RfcTableExtensions.ToList<MaterialTransferLog>(rfcFunction.GetTable("GMDATA"));
+                    var result = RfcTableExtensions.ToList<MaterialTransferLog>(rfcFunction.GetTable("GMDATA"));
                     return result;
                 }
                 catch (RfcCommunicationException ex) { throw new Exception("无法连接到 SAP 系统。", ex); }
@@ -311,6 +311,56 @@ namespace BizLink.MES.Infrastructure.Persistence.Repositories
                 catch (Exception ex) { throw new Exception("调用 SAP RFC 时发生未知错误。", ex); }
             });
 
+        }
+
+        public async Task<SapLabelDataComponent> GetSapLabelDataByMaterialCodeAsync(string factoryCode, string materialCode)
+        {
+            return await Task.Run(() =>
+            {
+                try
+                {
+                    IRfcFunction rfcFunction = _destination.Repository.CreateFunction("ZC_XX_PPMASTERDATA");
+                    rfcFunction.SetValue("FUNC", "L");
+                    IRfcTable tSAP = rfcFunction.GetTable("LABELDATA");
+                    tSAP.Append();
+                    //tSAP.CurrentRow.SetValue("MATNR", materialCode.StartsWith('E') ? materialCode : materialCode.PadLeft(18, '0'));
+                    tSAP.CurrentRow.SetValue("MATNR", materialCode);
+                    tSAP.CurrentRow.SetValue("WERKS", factoryCode);
+                    rfcFunction.Invoke(_destination);
+                    var result = RfcTableExtensions.ToList<SapLabelDataComponent>(rfcFunction.GetTable("LABELDATA"));
+
+                    if (result == null || result.Count() == 0 || result.First() == null)
+                        throw new Exception("SAP未返回标签信息，请重试！");
+                    return result.First();
+                }
+                catch (RfcCommunicationException ex) { throw new Exception("无法连接到 SAP 系统。", ex); }
+                catch (RfcLogonException ex) { throw new Exception("SAP 登录失败。", ex); }
+                catch (Exception ex) { throw new Exception("调用 SAP RFC 时发生未知错误。", ex); }
+            });
+        }
+
+        public async Task<WorkOrderOperationConfirm?> CancelConfirmToSAPAsync(WorkOrderOperationConfirm confirm)
+        {
+            return await Task.Run(() =>
+            {
+                try
+                {
+                    IRfcFunction rfcFunction = _destination.Repository.CreateFunction("ZC_XX_MESDATACONF");
+                    rfcFunction.SetValue("FUNC", "C");
+                    IRfcTable confirmtable = rfcFunction.GetTable("CONFDATA");
+                    IRfcTable consumptable = rfcFunction.GetTable("CONSUMPDATA");
+                    RfcTableExtensions.MapToRfcTable(new List<WorkOrderOperationConfirm>() { confirm }, confirmtable);
+                    if (confirm.Consumps != null && confirm.Consumps.Count() > 0)
+                    {
+                        RfcTableExtensions.MapToRfcTable(confirm.Consumps, consumptable);
+                    }
+                    rfcFunction.Invoke(_destination);
+                    return RfcTableExtensions.ToList<WorkOrderOperationConfirm>(rfcFunction.GetTable("CONFDATA")).FirstOrDefault();
+                }
+                catch (RfcCommunicationException ex) { throw new Exception("无法连接到 SAP 系统。", ex); }
+                catch (RfcLogonException ex) { throw new Exception("SAP 登录失败。", ex); }
+                catch (Exception ex) { throw new Exception("调用 SAP RFC 时发生未知错误。", ex); }
+            });
         }
     }
 }

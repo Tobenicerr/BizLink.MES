@@ -25,6 +25,8 @@ namespace BizLink.MES.Domain.Repositories
 
         Task<int> BatchUpdateAsync(List<RawLinesideStock> input);
 
+        Task<List<RawLinesideStock>> GetListByMaterialCodeAsync(int factoryid, string? keyword, List<string>? materialcode, List<int>? locationIds, bool usage = true);
+
         Task<(List<RawLinesideStock>, int totalCount)> GetBatchPageListAsync(int pageIndex, int pageSize, int factoryid, string? keyword, bool quantitySwitch = true, List<string>? materialcodes = null, List<string>? batchcodes = null);
 
 

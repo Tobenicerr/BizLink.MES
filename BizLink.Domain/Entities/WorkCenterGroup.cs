@@ -49,6 +49,20 @@ namespace BizLink.MES.Domain.Entities
             get; set;
         }
 
+        [SugarColumn(IsIgnore = true)]
+
+        public int? WorkCenterId
+        {
+            get; set;
+        }
+
+        [SugarColumn(IsIgnore = true)]
+
+        public string? WorkCenterCode
+        {
+            get; set;
+        }
+
         [SugarColumn(IsNullable = true)]
 
         public string? Status

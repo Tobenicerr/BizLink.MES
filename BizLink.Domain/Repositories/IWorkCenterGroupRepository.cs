@@ -11,5 +11,9 @@ namespace BizLink.MES.Domain.Repositories
     public interface IWorkCenterGroupRepository : IGenericRepository<WorkCenterGroup>
     {
         Task<List<WorkCenterGroup>> GetListByGroupTypeAsync(int factoryid, string grouptype);
+
+        Task<WorkCenterGroup> GetByWorkCenterCodeAsync(string workcenterCode);
+
+        Task<List<WorkCenterGroup>> GetByWorkCenterCodeAsync(List<string> workcenterCode);
     }
 }

@@ -52,6 +52,13 @@ namespace BizLink.MES.Domain.Entities
             get; set;
         }
 
+        [SugarColumn(IsNullable = true, ColumnDataType = "decimal(18,3)")]
+
+        public decimal? CompletedQuantity
+        {
+            get; set;
+        }
+
         [SugarColumn(IsNullable = true, Length = 10)]
         public string? TargetUnit
         {
@@ -100,6 +107,47 @@ namespace BizLink.MES.Domain.Entities
             get; set;
         } = 0;
 
+        
+        /// <summary>
+        /// 实际工位ID
+        /// </summary>
+        [SugarColumn(IsNullable = true)]
+        public int? ActualWorkStationId
+        {
+            get; set;
+        }
+
+        [SugarColumn(IsNullable = true)]
+        public int? ActualWorkCenterId
+        {
+            get; set;
+        }
+        [SugarColumn(IsNullable = true)]
+
+        public string? ActualWorkCenterCode
+        {
+            get; set;
+        }
+
+        [SugarColumn(IsNullable = true)]
+
+        public string? ActualWorkStationCode
+        {
+            get; set;
+        }
+
+        [SugarColumn(IsNullable = true)]
+        public DateTime? ActualStartTime
+        {
+            get; set;
+        }
+
+        [SugarColumn(IsNullable = true)]
+        public DateTime? ActualEndTime
+        {
+            get; set;
+        }
+
         [SugarColumn(IsNullable = true, Length = 10)]
         public string? Status
         {
@@ -110,7 +158,7 @@ namespace BizLink.MES.Domain.Entities
         public DateTime? CreatedOn
         {
             get; set;
-        }
+        } = DateTime.Now;
 
         [SugarColumn(IsNullable = true, Length = 50)]
         public string? CreatedBy

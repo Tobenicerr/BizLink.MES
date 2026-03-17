@@ -261,6 +261,13 @@ namespace BizLink.MES.WinForms.Forms
 
                     //List<int> successIds = new List<int>();
                     List<int> allCheckedIds = checkedItems.Select(item => (int)item.Id).ToList();
+                    var existTransfers = await _materialTransferLogService.GetListByIdsAsync(allCheckedIds);
+
+                    if (existTransfers != null && existTransfers.Count() > 0) 
+                    {
+                        var hashSetIds = new HashSet<int>(existTransfers.Where(x => x.Status == "1").Select(x => x.Id).ToList());
+                        allCheckedIds.RemoveAll(x => hashSetIds.Contains(x));
+                    }
                     //Dictionary<string, string> failedItems = new Dictionary<string, string>();
                     progress.Visible = true;
                     progress.Value = 0.5F;

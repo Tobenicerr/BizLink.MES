@@ -684,6 +684,10 @@ namespace BizLink.MES.WinForms.Forms
         private async Task SyncInventoryToSapAsync(string matCode, string batchCode, string unit, decimal qty)
         {
             var parameterGroup = await _facade.Params.GetGroupWithItemsAsync(Group_SapLocation);
+            var workorder = await _facade.WorkOrderService.GetByIdAsync(_workOrderTaskDto.OrderId);
+            var toLocation = parameterGroup.Items.FirstOrDefault(x => x.Key == Key_CableProLineStock)?.Value ?? "2102";
+            if (string.IsNullOrEmpty(workorder.PlannerRemark) || !workorder.PlannerRemark.Contains(toLocation))
+                toLocation = "2100";
             var request = new TransferSapRequest
             {
                 FactoryCode = AppSession.CurrentUser.FactoryName,
@@ -703,7 +707,7 @@ namespace BizLink.MES.WinForms.Forms
                 WorkOrderId = _workOrderTaskDto.OrderId, // 注意：这里需要 OrderID 还是 OrderNo 取决于 API 定义，原代码用 order.Id
                 WorkOrderNo = _workOrderTaskDto.OrderNumber,
                 FromLocation = parameterGroup.Items.FirstOrDefault(x => x.Key == Key_CableRawLineStock)?.Value ?? "2200",
-                ToLocation = parameterGroup.Items.FirstOrDefault(x => x.Key == Key_CableProLineStock)?.Value ?? "2100"
+                ToLocation = toLocation
             };
 
             _facade.MesApi.PostAsync<object, object>(_facade.ApiSettings["MesApi"].Endpoints["LineStockTransferToSAP"], request);

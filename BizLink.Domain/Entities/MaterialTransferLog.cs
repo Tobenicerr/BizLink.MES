@@ -172,6 +172,13 @@ namespace BizLink.MES.Domain.Entities
             get; set;
         }
 
+        [SugarColumn(IsNullable = true, Length = 50)]
+        [SapFieldName("WORK_CNTR")]
+        public string? WorkCenterCode
+        {
+            get; set;
+        }
+
         [SugarColumn(IsNullable = true)]
         [SapFieldName("MSG")]
         public string? Message  

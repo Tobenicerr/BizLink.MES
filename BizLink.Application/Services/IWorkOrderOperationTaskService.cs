@@ -9,7 +9,12 @@ using System.Threading.Tasks;
 
 namespace BizLink.MES.Application.Services
 {
-    public interface IWorkOrderOperationTaskService :IGenericService<WorkOrderOperationTaskDto, WorkCenterGroupStepConfigCreateDto, WorkOrderOperationTaskUpdateDto>
+    public interface IWorkOrderOperationTaskService :IGenericService<WorkOrderOperationTaskDto, WorkOrderOperationTaskCreateDto, WorkOrderOperationTaskUpdateDto>
     {
+        Task<List<WorkOrderOperationTaskDto>> GetByIdAsync(List<int> ids);
+
+        Task<List<WorkOrderOperationTaskDto>> GetListByProcessIdAsync(List<int> processIds);
+
+        Task<bool> UpdateBatchAsync(List<WorkOrderOperationTaskUpdateDto> updateDtos);
     }
 }

@@ -107,5 +107,10 @@ namespace BizLink.MES.Infrastructure.Persistence.Repositories
             return await _db.Queryable<User>().Where(u => EmployeeIds.Contains(u.EmployeeId) && u.IsDelete == false).ToListAsync();
 
         }
+
+        public async Task<List<User>> GetListByFactoryIdAsync(int factoryId)
+        {
+            return await _db.Queryable<User>().Where(u => u.FactoryId == factoryId && !u.IsDelete).ToListAsync();
+        }
     }
 }

@@ -128,5 +128,12 @@ namespace BizLink.MES.Application.Services
         {
             return await _workOrderProcessRepository.AddBulkAsync(_mapper.Map<List<WorkOrderProcess>>(createDto));
         }
+
+        public async Task<List<WorkOrderProcessDto>> GetNeedReceiptWorkOrderProcessAsync(int factoryId, DateTime? startDate, DateTime? endDate, string? workCenter)
+        {
+            var entities = await _workOrderProcessRepository.GetNeedReceiptWorkOrderProcessAsync(factoryId, startDate, endDate, workCenter);
+            return _mapper.Map<List<WorkOrderProcessDto>>(entities);
+
+        }
     }
 }

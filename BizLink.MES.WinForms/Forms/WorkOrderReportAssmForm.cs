@@ -434,11 +434,20 @@ namespace BizLink.MES.WinForms.Forms
                         //如果已选择的工位在已有任务中不存在，则提示错误
                         var newStationIds = selectedStationIds.Except(existingStationIds).ToList();
                         var newStations = await _facade.WorkStation.GetByIdAsync(newStationIds);
-                        throw new Exception($"当前任务任务已存在，且新增[{string.Join(",", newStations.Select(s => s.WorkStationName))}]未创建任务，请单独对[{string.Join(",", newStations.Select(s => s.WorkStationName))}]报工！");
+                        throw new Exception($"当前工步任务已存在，且新增[{string.Join(",", newStations.Select(s => s.WorkStationName))}]未创建任务，请单独对[{string.Join(",", newStations.Select(s => s.WorkStationName))}]报工！");
                     }
                     else
                     {
                         var targetTasks = tasks.Where(x => x.WorkStationId.HasValue && selectedStationIds.Contains(x.WorkStationId.Value)).ToList();
+
+                        //判断任务是否存在已完成记录
+                        var completedStationIds = targetTasks.Where(x => x.Status == ((int)WorkOrderStatus.Finished).ToString()).Select(x => (int)x.WorkStationId).ToList();
+                        if (completedStationIds != null && completedStationIds.Count() > 0)
+                        {
+                            var completedStations = await _facade.WorkStation.GetByIdAsync(completedStationIds);
+                            throw new Exception($"工步[{string.Join(",", completedStations.Select(s => s.WorkStationName))}]任务已完成，请勿重复进行报工！");
+
+                        }
 
                         var uniqueQuantities = targetTasks.Select(x => x.CompletedQty ?? 0).Distinct().ToList();
                         //判断当前选择的工位与已有任务的工位完成数量是否一致

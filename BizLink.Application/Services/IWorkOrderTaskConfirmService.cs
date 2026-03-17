@@ -18,6 +18,8 @@ namespace BizLink.MES.Application.Services
 
         Task<List<WorkOrderTaskConfirmDto>> GetListByTaskIdAsync(int taskid);
 
+        Task<List<WorkOrderTaskConfirmDto>> GetListByTaskIdAsync(List<int> taskids);
+
         Task<List<WorkOrderTaskConfirmDto>> GetListByOrderNoAsync(string orderno);
 
         Task<WorkOrderTaskConfirmDto> GetByStationIdAsync(int prossid, int stationid, List<int> confirmids);

@@ -133,5 +133,11 @@ namespace BizLink.MES.Application.Services
             _mapper.Map(updateDto, entity);
             return await _rawLinesideStockRepository.UpdateAsync(entity);
         }
+
+        public async Task<List<RawLinesideStockDto>> GetListByMaterialCodeAsync(int factoryid, string? keyword, List<string>? materialcode, List<int>? locationIds, bool usage = true)
+        {
+            var entities = await _rawLinesideStockRepository.GetListByMaterialCodeAsync(factoryid, keyword, materialcode, locationIds, usage);
+            return _mapper.Map<List<RawLinesideStockDto>>(entities);
+        }
     }
 }

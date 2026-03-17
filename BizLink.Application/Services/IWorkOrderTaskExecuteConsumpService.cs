@@ -10,5 +10,6 @@ namespace BizLink.MES.Application.Services
 {
     public interface IWorkOrderTaskExecuteConsumpService: IGenericService<WorkOrderTaskExecuteConsumpDto, WorkOrderTaskExecuteConsumpCreateDto, WorkOrderTaskExecuteConsumpUpdateDto>
     {
+        Task<List<WorkOrderTaskExecuteConsumpDto>> GetListByExecuteIdAsync(int exeId);
     }
 }

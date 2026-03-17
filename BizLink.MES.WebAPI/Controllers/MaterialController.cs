@@ -51,5 +51,20 @@ namespace BizLink.MES.WebAPI.Controllers
                 return BadRequest(ApiResponse<bool>.Fail(ex.Message));
             }
         }
+
+        [HttpGet("GetSapLabelComponent")]
+        public async Task<ActionResult<ApiResponse<SapLabelDataComponentDto>>> GetSapLabelComponentByMaterialCodeAsync(string factoryCode, string materialCode) 
+        {
+            try
+            {
+                var result = await _sapRfcService.GetSapLabelDataByMaterialCodeAsync(factoryCode, materialCode);
+                return Ok(ApiResponse<SapLabelDataComponentDto>.Success(result));
+            }
+            catch (Exception ex)
+            {
+
+                return BadRequest(ApiResponse<object>.Fail($"查询SAP标签信息出错：{ex.Message}"));
+            }
+        }
     }
 }

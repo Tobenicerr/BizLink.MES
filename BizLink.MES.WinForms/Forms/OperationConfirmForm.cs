@@ -1,37 +1,14 @@
 ﻿using AntdUI;
-using AutoMapper.Internal;
-using Azure;
-using Azure.Core;
-using BizLink.MES.Application.ApiClient;
 using BizLink.MES.Application.DTOs;
 using BizLink.MES.Application.Facade;
 using BizLink.MES.Application.Services;
-using BizLink.MES.Domain.Entities;
-using BizLink.MES.Domain.Entities.Views;
-using BizLink.MES.Domain.Enums;
 using BizLink.MES.WinForms.Common;
 using BizLink.MES.WinForms.Common.Helper;
 using BizLink.MES.WinForms.Infrastructure;
 using Dm.util;
-using DocumentFormat.OpenXml.Office2010.Excel;
-using DocumentFormat.OpenXml.Office2016.Excel;
-using DocumentFormat.OpenXml.Wordprocessing;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Options;
-using Microsoft.IdentityModel.Protocols.OpenIdConnect;
-using Newtonsoft.Json;
-using System;
-using System.Collections.Generic;
-using System.ComponentModel;
 using System.Data;
-using System.Diagnostics;
-using System.Drawing;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Web;
-using System.Windows.Forms;
-using static System.Windows.Forms.VisualStyles.VisualStyleElement;
 
 namespace BizLink.MES.WinForms.Forms
 {
@@ -40,6 +17,7 @@ namespace BizLink.MES.WinForms.Forms
     {
         private readonly OperationConfirmModuleFacade _facade;
         private bool _isProgrammaticPageChange = false;
+        private readonly ITaskExecutionService _taskExecutionService;
         private readonly IServiceScopeFactory _scopeFactory; // 【新增】用于创建临时事务 Scope
 
         // 常量
@@ -47,10 +25,11 @@ namespace BizLink.MES.WinForms.Forms
         private const string PackConfirmWorkCenterKey = "PackWorkCenter";
 
         // 2. 构造函数：只注入 Facade
-        public OperationConfirmForm(OperationConfirmModuleFacade facade,IServiceScopeFactory scopeFactory)
+        public OperationConfirmForm(OperationConfirmModuleFacade facade, IServiceScopeFactory scopeFactory, ITaskExecutionService taskExecutionService)
         {
             _facade = facade;
             _scopeFactory = scopeFactory;
+            _taskExecutionService = taskExecutionService;
             InitializeComponent();
             InitializeTable();
         }
@@ -185,7 +164,8 @@ namespace BizLink.MES.WinForms.Forms
                     {
                         if (data.Id == null || data.Id == 0)
                         {
-                            await HandleNewEntryRePushAsync(data);
+                            throw new Exception($"当前订单{data.WorkOrderNo}-工序{data.OperationNo}未报工，无法进行重推！");
+                            //await HandleNewEntryRePushAsync(data);
                         }
                         else
                         {
@@ -193,7 +173,7 @@ namespace BizLink.MES.WinForms.Forms
                         }
 
                         data.Status = "1"; // 更新 UI 状态
-
+                        ((CellButton)e.Btn).Enabled = false;
 
                     }, successMsg: "重推成功！");
                 }
@@ -246,7 +226,7 @@ namespace BizLink.MES.WinForms.Forms
                         else
                             throw new Exception("拆分已取消！");
                     }, successMsg: "拆分成功！");
-                    
+
                 }
 
             }
@@ -372,23 +352,36 @@ namespace BizLink.MES.WinForms.Forms
             if (data.Status == "1")
                 throw new Exception("该报工已同步至SAP，无需重推！");
 
-            var sapRequestUrl = _facade.ApiSettings["MesApi"].Endpoints["ReentryConfirmToSAP"];
-
-            var query = HttpUtility.ParseQueryString(string.Empty);
-
-            query["confirmid"] = data.Id.ToString();
-
-            string requestUriWithQuery = sapRequestUrl + "?" + query.ToString();
-
-            var response = await _facade.MesApi.PostAsync<object, object>(requestUriWithQuery, null);
-
-            if (response == null || !response.IsSuccess)
+            if (data.Id == null || data.Id == 0)
+                throw new Exception("未获取到报工记录ID，请刷新页面后重试！");
+            try
             {
-                data.Status = "-1"; // 更新 UI 状态为失败
-                data.Message = response?.Message ?? "重推失败";
-                data.MessageType = "E";
-                throw new Exception($"重推失败：{response?.Message ?? "API返回空"}");
+                await _taskExecutionService.ReEntryPushSapConfirmAsync((int)data.Id);
             }
+            catch (Exception)
+            {
+                data.Status = "-1";
+                throw;
+            }
+            data.Status = "1";
+            //await LoadDataAsync();
+            //var sapRequestUrl = _facade.ApiSettings["MesApi"].Endpoints["ReentryConfirmToSAP"];
+
+            //var query = HttpUtility.ParseQueryString(string.Empty);
+
+            //query["confirmid"] = data.Id.ToString();
+
+            //string requestUriWithQuery = sapRequestUrl + "?" + query.ToString();
+
+            //var response = await _facade.MesApi.PostAsync<object, object>(requestUriWithQuery, null);
+
+            //if (response == null || !response.IsSuccess)
+            //{
+            //    data.Status = "-1"; // 更新 UI 状态为失败
+            //    data.Message = response?.Message ?? "重推失败";
+            //    data.MessageType = "E";
+            //    throw new Exception($"重推失败：{response?.Message ?? "API返回空"}");
+            //}
         }
 
         // --- 导出 ---
@@ -587,7 +580,7 @@ namespace BizLink.MES.WinForms.Forms
             _workCenterCode = dto.WorkCenterCode;
             _yieldQuantity = dto.YieldQuantity;
             _completedFlag = dto.CompletedFlag;
-            _status= dto.Status;
+            _status = dto.Status;
             _messageType = dto.MessageType;
             _message = SapErrorTranslator.ToChinese(dto.Message);
             _factoryCode = dto.FactoryCode;

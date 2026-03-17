@@ -19,6 +19,8 @@ namespace BizLink.MES.Application.Services
 
         Task<List<RawLinesideStockDto>> GetListByMaterialCodeAsync(int factoryid, List<string> materialcode);
 
+        Task<List<RawLinesideStockDto>> GetListByMaterialCodeAsync(int factoryid, string? keyword,List<string>? materialcode,List<int>? locationIds, bool usage = true);
+
         Task<RawLinesideStockDto> GetByBarCodeAsync(int factoryid, string barcode);
 
         Task<List<RawLinesideStockDto>> GetByBarCodeAsync(int factoryid, List<string> barcode);

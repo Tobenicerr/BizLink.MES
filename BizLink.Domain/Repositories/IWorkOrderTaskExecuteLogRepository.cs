@@ -10,5 +10,8 @@ namespace BizLink.MES.Domain.Repositories
 {
     public interface IWorkOrderTaskExecuteLogRepository : IGenericRepository<WorkOrderTaskExecuteLog>
     {
+        Task<List<WorkOrderTaskExecuteLog>> GetListByStepTaskIdAsync(int stepTaskId);
+
+        Task<List<WorkOrderTaskExecuteLog>> GetListByTaskIdAsync(int taskId, string TaskLevel);
     }
 }

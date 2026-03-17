@@ -60,6 +60,12 @@ namespace BizLink.MES.Application.Services
             return _mapper.Map<WorkOrderOperationConfirmDto>(entity);
         }
 
+        public async Task<List<WorkOrderOperationConfirmDto>> GetConfirmWitemConsumeptionAsync(List<int> confirmids)
+        {
+            var entities = await _workOrderOperationConfirmRepository.GetConfirmWitemConsumeptionAsync(confirmids);
+            return _mapper.Map<List<WorkOrderOperationConfirmDto>>(entities);
+        }
+
         public async Task<List<WorkOrderOperationConfirmDto>> GetListByProcessIdAsync(int processid)
         {
             var entity =  await _workOrderOperationConfirmRepository.GetListByProcessIdAsync(processid);

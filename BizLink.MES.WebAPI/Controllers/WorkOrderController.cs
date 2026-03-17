@@ -20,10 +20,14 @@ namespace BizLink.MES.WebAPI.Controllers
     {
         // 核心：只注入一个封装好的 Service
         private readonly IWorkOrderProcessApiService _workOrderSapService;
+        private readonly ISapRfcService _sapRfcService;
+        private readonly ITaskExecutionService _taskExecutionService;
 
-        public WorkOrderProcessController(IWorkOrderProcessApiService workOrderSapService)
+        public WorkOrderProcessController(IWorkOrderProcessApiService workOrderSapService, ISapRfcService sapRfcService, ITaskExecutionService taskExecutionService)
         {
             _workOrderSapService = workOrderSapService;
+            _sapRfcService = sapRfcService;
+            _taskExecutionService = taskExecutionService;
         }
 
         [HttpPost("OperationReportToSAP")]
@@ -31,8 +35,10 @@ namespace BizLink.MES.WebAPI.Controllers
         {
             try
             {
-                var message = await _workOrderSapService.ReportWorkOrderOperationToSapAsync(request);
-                return Ok(ApiResponse<string>.Success(message));
+                //var message = await _workOrderSapService.ReportWorkOrderOperationToSapAsync(request);
+                //return Ok(ApiResponse<string>.Success(message));
+                return BadRequest(ApiResponse<object>.Fail("方法作废"));
+
             }
             catch (Exception ex)
             {
@@ -46,8 +52,56 @@ namespace BizLink.MES.WebAPI.Controllers
         {
             try
             {
-                var message = await _workOrderSapService.ReSendConfirmationToSapAsync(confirmid);
-                return Ok(ApiResponse<string>.Success(message));
+                await _taskExecutionService.ReEntryPushSapConfirmAsync(confirmid);
+                return Ok(ApiResponse<string>.Success("重推成功！"));
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ApiResponse<object>.Fail(ex.Message));
+            }
+        }
+
+
+        [HttpPost("ConfirmationBatchReentryToSAP")]
+        public async Task<ActionResult<ApiResponse<string>>> BatchReentryOfConfirmationToSAPAsync([FromBody] List<int> confirmids)
+        {
+            try
+            {
+                await _taskExecutionService.BatchReEntryPushSapConfirmAsync(confirmids);
+                return Ok(ApiResponse<string>.Success("重推成功"));
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ApiResponse<object>.Fail(ex.Message));
+            }
+        }
+
+
+        [HttpPost("CancelConfirmationToSAP")]
+        public async Task<ActionResult<ApiResponse<List<WorkOrderOperationConfirmDto>>>> CancelConfirmationToSAPAsync([FromBody] List<int> confirmids)
+        {
+            try
+            {
+                var result = await _sapRfcService.CancelBatchConfirmToSAPAsync(confirmids);
+                return Ok(ApiResponse<List<WorkOrderOperationConfirmDto>>.Success(result));
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ApiResponse<object>.Fail(ex.Message));
+            }
+        }
+
+
+        [HttpPost("FinishedGoodsReceiptToSAP")]
+        public async Task<ActionResult<ApiResponse<string>>> FinishedGoodsReceiptToSapAsync([FromQuery] int receiptId) 
+        {
+            try
+            {
+                var (result,message) = await _workOrderSapService.FinishedGoodsReceiptToSapAsync(receiptId);
+                if (result)
+                    return Ok(ApiResponse<string>.Success(message));
+                else
+                    return BadRequest(ApiResponse<string>.Fail(message));
             }
             catch (Exception ex)
             {

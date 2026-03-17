@@ -2,6 +2,7 @@
 using BizLink.MES.Application.ApiClient;
 using BizLink.MES.Application.DTOs;
 using BizLink.MES.Application.DTOs.Request;
+using BizLink.MES.Application.DTOs.Response;
 using BizLink.MES.Application.Helper;
 using BizLink.MES.Domain.Common;
 using BizLink.MES.Domain.Entities;
@@ -19,6 +20,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Polly;
+using Polly.Retry;
 
 namespace BizLink.MES.Application.Services
 {
@@ -28,7 +31,7 @@ namespace BizLink.MES.Application.Services
         private const string ProductStockStatusCompleted = "2";
         private const string ProductStockStatusPending = "1";
         private const string SapSuccessMessageType = "S";
-        private const string DefaultSapLocation = "2100";
+        private const string DefaultSapLocation = "2102";
         private const string DefaultBaseUnit = "ST";
         private const string SapParamGroup = "CN11SAPStockLocation";
         private const string SapRawMaterialStockKey = "SAPRawMtrStock";
@@ -155,13 +158,13 @@ namespace BizLink.MES.Application.Services
                     await HandleSapStockTransfersAsync(transferLogDtos);
 
                     //订单非单道工序且在工作中心白名单中进行报工
-                //    var allowconfirmworkcenters = (await _parameterGroupService.GetGroupWithItemsAsync(PackConfirmWorkCenterParamGroup))
-                //?.Items.FirstOrDefault(x => x.Key == PackConfirmWorkCenterKey).Value;
+                    //    var allowconfirmworkcenters = (await _parameterGroupService.GetGroupWithItemsAsync(PackConfirmWorkCenterParamGroup))
+                    //?.Items.FirstOrDefault(x => x.Key == PackConfirmWorkCenterKey).Value;
 
-                //    if (allProcesses.Count() > 1 && allowconfirmworkcenters.Split(",").Contains(firstProcess.WorkCenter))
-                //    {
-                //        await ConfirmCompletionToSapAsync(sapConfirm);
-                //    }
+                    //    if (allProcesses.Count() > 1 && allowconfirmworkcenters.Split(",").Contains(firstProcess.WorkCenter))
+                    //    {
+                    //        await ConfirmCompletionToSapAsync(sapConfirm);
+                    //    }
 
                     // 5c. 通知外部 JY API
                     //return linesideProducts
@@ -169,7 +172,17 @@ namespace BizLink.MES.Application.Services
                     //    .Select(x => x.Remark.Split("-")[1])
                     //    .Distinct()
                     //    .ToList();
-
+                    var retryPolicy = Policy.Handle<Exception>() // 处理网络异常
+                    .OrResult<WmsApprovedResponse>(r => r.Result != "S") // 处理业务失败
+                    .WaitAndRetryAsync(
+                        2, // 重试3次
+                        retryAttempt => TimeSpan.FromSeconds(Math.Pow(2, retryAttempt)), // 等待 2, 4, 8 秒
+                        (exception, timeSpan, retryCount, context) =>
+                        {
+                            // 这里可以统一写日志
+                            // Log: Warning($"重试第 {retryCount} 次，等待 {timeSpan.TotalSeconds}秒...");
+                        }
+                    );
                     var requestUrl = _apiSettings["JyApi"].Endpoints["PickTaskApprove"];
                     List<ActivityLogCreateDto> logs = new List<ActivityLogCreateDto>();
                     foreach (var item in linesideProducts
@@ -178,22 +191,36 @@ namespace BizLink.MES.Application.Services
                         .Distinct()
                         .ToList())
                     {
-                        var response = await _jyApiClient.PostAsync<object, object>(requestUrl, new
+
+                        // 使用策略执行请求
+                        var finalResult = await retryPolicy.ExecuteAndCaptureAsync(async () =>
                         {
-                            gid = Guid.NewGuid(),
-                            billcode = item,
-                            User = "admin",
-                            plant = "CN11"
+                            var response =  await _jyApiClient.PostAsync<object, object>(requestUrl, new
+                            {
+                                gid = Guid.NewGuid(),
+                                billcode = item,
+                                User = "admin",
+                                plant = "CN11"
+                            });
+                            return new WmsApprovedResponse() 
+                            {
+                                Result = string.IsNullOrWhiteSpace(response.Message) ? "S":"F",
+                                Message = response.Message
+                            };
                         });
-                        logs.Add(new ActivityLogCreateDto
+
+                        if (finalResult.Result.Result != "S") 
                         {
-                            LogType = "APIINFO",
-                            LogContent = "WMSPickTaskApprove",
-                            Details
-                            = $"单据号: {item}，响应: {response.ToString()}",
-                            UserName = dto.UpdateBy,
-                            Timestamp = DateTime.Now
-                        });
+                            logs.Add(new ActivityLogCreateDto
+                            {
+                                LogType = "APIINFO",
+                                LogContent = "WMSPickTaskApprove",
+                                Details = $"单据号: {item}，响应: {JsonConvert.SerializeObject(finalResult.Result)}",
+                                UserName = dto.UpdateBy,
+                                Timestamp = DateTime.Now
+                            });
+                        }
+
                     }
 
                     if (logs != null)
@@ -295,7 +322,7 @@ namespace BizLink.MES.Application.Services
                         .Distinct()
                         .ToList())
                     {
-                        var response = await _jyApiClient.PostAsync<object, object>(requestUrl, new
+                        var response = await _jyApiClient.PostAsync<object, WmsApprovedResponse>(requestUrl, new
                         {
                             gid = Guid.NewGuid(),
                             billcode = item,
@@ -371,6 +398,7 @@ namespace BizLink.MES.Application.Services
 
             // 使用更清晰的 LINQ 或循环来检查
             bool allTasksCompleted = true;
+            var cableTaskStatus = new string[2] { ((int)WorkOrderStatus.Paused).ToString(), ((int)WorkOrderStatus.Finished).ToString() };
             foreach (var item in cableItems)
             {
                 // 检查是否存在匹配的任务
@@ -381,7 +409,7 @@ namespace BizLink.MES.Application.Services
                     break;
                 }
                 //断线任务挂起不进入合箱验证
-                bool taskUnCompleted = tasks.Any(t => t.OrderProcessId == item.WorkOrderProcessId && t.MaterialItem == item.BomItem && t.Quantity != t.CompletedQty && t.Status != ((int)WorkOrderStatus.Paused).ToString());
+                bool taskUnCompleted = tasks.Any(t => t.OrderProcessId == item.WorkOrderProcessId && t.MaterialItem == item.BomItem && t.Quantity != t.CompletedQty && !cableTaskStatus.Contains(t.Status));
                 if (taskUnCompleted)
                 {
                     allTasksCompleted = false;
@@ -477,10 +505,9 @@ namespace BizLink.MES.Application.Services
                 await _workOrderProcessService.UpdateAsync(processToUpdate);
 
                 // 3. 按单物料创建移库记录
-
                 var parameterGroup = await _parameterGroupService.GetGroupWithItemsAsync(SapParamGroup);
                 string fromLocation = parameterGroup?.Items.FirstOrDefault(x => x.Key == SapRawMaterialStockKey)?.Value ?? "1100";
-                string toLocation = parameterGroup?.Items.FirstOrDefault(x => x.Key == SapLineStockKey)?.Value ?? DefaultSapLocation; // "2100"
+                string toLocation = (string.IsNullOrEmpty(workorder.PlannerRemark) || !workorder.PlannerRemark.Contains(DefaultSapLocation)) ? "2100" : (parameterGroup?.Items.FirstOrDefault(x => x.Key == SapLineStockKey)?.Value ?? DefaultSapLocation);
                 var materialTransferLogIds = new List<int>();
                 var materialTransferLogDtos = new List<MaterialTransferLogDto>();
                 var transferNews = new List<MaterialTransferLogCreateDto>();
@@ -667,7 +694,7 @@ namespace BizLink.MES.Application.Services
                             ReservationItem = s.Key.ReservationItem,
                             MaterialCode = s.Key.MaterialCode.StartsWith("E") ? s.Key.MaterialCode : s.Key.MaterialCode.PadLeft(18, '0'),
                             FactoryCode = factory.FactoryCode,
-                            FromLocationCode = DefaultSapLocation, // "2100"
+                            FromLocationCode = toLocation,  
                             BatchCode = s.Key.BatchCode,
                             MovementType = ((int)s.Key.ConsumptionType).ToString(),
                             MovementReason = s.Key.ConsumptionRemark ?? "",
@@ -721,7 +748,7 @@ namespace BizLink.MES.Application.Services
 
             var parameterGroup = await _parameterGroupService.GetGroupWithItemsAsync(SapParamGroup);
             string fromLocation = parameterGroup?.Items.FirstOrDefault(x => x.Key == SapRawMaterialStockKey)?.Value ?? "1100";
-            string toLocation = parameterGroup?.Items.FirstOrDefault(x => x.Key == SapLineStockKey)?.Value ?? DefaultSapLocation; // "2100"
+            string toLocation = parameterGroup?.Items.FirstOrDefault(x => x.Key == SapLineStockKey)?.Value ?? DefaultSapLocation; 
             //var consumeRecord = await _workOrderOperationConsumptionRecordService.GetListByProcessIdAsync((int)confirm.ProcessId);
             var materialTransferLogDtos = new List<MaterialTransferLogDto>();
             foreach (var item in orderPickProducts)
@@ -821,7 +848,7 @@ namespace BizLink.MES.Application.Services
             //}
             #endregion
 
-            //3. 将sap库存从1100 移动至2100
+            //3. 将sap库存从1100 移动至生产线边库
             var result = await _sapRfcService.MaterialStockTransferToSAPAsync(materialTransferLogDtos);
 
             //更新log记录
@@ -843,7 +870,7 @@ namespace BizLink.MES.Application.Services
             {
                 return;
             }
-            //3. 将sap库存从1100 移动至2100
+            //3. 将sap库存从1100 移动至生产线边
             var result = await _sapRfcService.MaterialStockTransferToSAPAsync(materialTransferLogs);
 
             //更新log记录

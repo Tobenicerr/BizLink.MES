@@ -1,4 +1,5 @@
-﻿using System;
+﻿using BizLink.MES.Application.DTOs;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -8,5 +9,6 @@ namespace BizLink.MES.Application.ApiClient
 {
     public interface IJyApiClient : IApiClient
     {
+        Task<ApiResponse<T>> WmsPostAsync<T>(string requestUri, string jsonstr);
     }
 }

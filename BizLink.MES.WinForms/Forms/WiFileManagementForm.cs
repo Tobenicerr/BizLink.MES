@@ -1,10 +1,14 @@
 ﻿using AntdUI;
+using BizLink.MES.Application.DTOs;
 using BizLink.MES.Application.Services;
 using BizLink.MES.WinForms.Common;
 using BizLink.MES.WinForms.Infrastructure;
 using ClosedXML.Graphics;
 using DiffMatchPatch;
+using DocumentFormat.OpenXml.Bibliography;
 using DocumentFormat.OpenXml.Office2019.Excel.ThreadedComments;
+using Microsoft.Extensions.Options;
+using Newtonsoft.Json;
 using PdfiumViewer;
 using SqlSugar;
 using System;
@@ -17,9 +21,12 @@ using System.Drawing.Imaging;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using System.Windows.Input;
+using Tesseract;
+using UglyToad.PdfPig.Content;
 
 namespace BizLink.MES.WinForms.Forms
 {
@@ -31,14 +38,36 @@ namespace BizLink.MES.WinForms.Forms
         private readonly IMaterialViewService _materialViewService;
         private readonly IFactoryService _factoryService;
         private readonly IWiDocumentService _wiDocumentService;
+        private readonly IParameterGroupService _parameterGroupService;
+        private readonly ServiceEndpointSettings _apiSettings; // 假设您有配置类
 
-        public WiFileManagementForm(IMaterialViewService materialViewService, IFactoryService factoryService, IWiDocumentService wiDocumentService)
+
+        private string _currentLocalFilePath = string.Empty;
+        private const string PARAM_OCRDICT = "OcrCorrectionDict";
+        private const string PARAMITEM_OCRDICTJSON = "OcrDictJson";
+
+
+
+        public WiFileManagementForm(IMaterialViewService materialViewService, IOptions<Dictionary<string, ServiceEndpointSettings>> apiSettings, IFactoryService factoryService, IWiDocumentService wiDocumentService, IParameterGroupService parameterGroupService)
         {
             InitializeComponent();
             InitializeCustomComponents();
             _materialViewService = materialViewService;
             _factoryService = factoryService;
             _wiDocumentService = wiDocumentService;
+            _parameterGroupService = parameterGroupService;
+            _apiSettings = apiSettings.Value["MesApi"];
+
+
+        }
+
+        protected override async void OnLoad(EventArgs e)
+        {
+            base.OnLoad(e);
+            ConstructionNoSelect.PlaceholderText = "请选择图纸号...";
+            DocumentNoSelect.PlaceholderText = "请选择文件编号...";
+            await LoadOcrDictionaryFromDatabaseAsync();
+            await LoadConstructionNoAsync();
         }
 
         private void InitializeCustomComponents()
@@ -48,6 +77,43 @@ namespace BizLink.MES.WinForms.Forms
 
             viewerLeft = CreateViewer(splitter1.Panel1, "Reference / Base");
             viewerRight = CreateViewer(splitter1.Panel2, "Target / Diff Highlight", isDiffView: true);
+        }
+
+
+        /// <summary>
+        /// 从数据库加载 OCR 纠错字典并赋给提取器
+        /// </summary>
+        private async Task LoadOcrDictionaryFromDatabaseAsync()
+        {
+            try
+            {
+                var dictParam = await _parameterGroupService.GetGroupWithItemsAsync(PARAM_OCRDICT);
+
+
+                if (dictParam != null && dictParam.Items.Count() > 0)
+                {
+                    // 将 JSON 字符串反序列化为 Dictionary
+                    var corrections = JsonConvert.DeserializeObject<Dictionary<string, string>>(dictParam.Items.Where(x => x.Key == PARAMITEM_OCRDICTJSON).First().Value);
+
+                    // 将字典传给提取器
+                    TesseractExtractor.SetCorrections(corrections);
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("加载 OCR 纠错字典失败：" + ex.Message);
+            }
+        }
+
+        private async Task LoadConstructionNoAsync()
+        {
+            ConstructionNoSelect.Items.Clear();
+            var dtos = await _wiDocumentService.GetAllAsync();
+            ConstructionNoSelect.Items.AddRange(dtos.Select(x => x.ConstructionNo).Distinct().Select(x => new MenuItem()
+            {
+                Name = x,
+                Text = x
+            }).ToArray());
         }
 
         private PdfViewerControl CreateViewer(Control parentContainer, string labelText, bool isDiffView = false)
@@ -94,91 +160,109 @@ namespace BizLink.MES.WinForms.Forms
             return viewer;
         }
 
-        private void CompareButton_Click(object sender, EventArgs e)
+        private async void CompareButton_Click(object sender, EventArgs e)
         {
-            var selectedRows = versionList;
-            if (selectedRows == null || selectedRows.Count != 2)
-            {
-                AntdUI.Message.warn(this, "请选择两个版本");
-                return;
-            }
-            var oldVer = selectedRows[0].RawTime < selectedRows[1].RawTime ? selectedRows[0] : selectedRows[1];
-            var newVer = selectedRows[0].RawTime < selectedRows[1].RawTime ? selectedRows[1] : selectedRows[0];
 
-            System.Threading.Tasks.Task.Run(() =>
+            await RunAsync(CompareButton, async () =>
             {
+                // 1. 直接从左右两个 Viewer 控件中获取当前已经加载好的页面数据
+                var leftPages = viewerLeft.GetPagesData();
+                var rightPages = viewerRight.GetPagesData();
+
+                // 防呆校验：确保两侧都有数据
+                if (leftPages == null || leftPages.Count == 0 || rightPages == null || rightPages.Count == 0)
+                {
+                    throw new Exception("请先在左右两侧加载需要比对的文件（可点击列表或上传）");
+                }
+
+                // 清理上一轮比对遗留的旧截图资源，防止内存泄漏
+                foreach (var page in rightPages)
+                {
+                    if (page.Regions != null)
+                    {
+                        foreach (var r in page.Regions)
+                        {
+                            r.OldImageSnippet?.Dispose();
+                            r.NewImageSnippet?.Dispose();
+                        }
+                    }
+                }
+
                 try
                 {
-                    float dpi = 150f; // 150 DPI 适合多页浏览
-
-                    var oldPagesData = new List<PageDiffData>();
-                    var newPagesData = new List<PageDiffData>();
-
-                    // 1. 获取页数 (取最大页数)
-                    int pCountA = GetPageCount(oldVer.FilePath);
-                    int pCountB = GetPageCount(newVer.FilePath);
-                    int maxPages = Math.Max(pCountA, pCountB);
+                    int maxPages = Math.Max(leftPages.Count, rightPages.Count);
 
                     if (maxPages > 50)
                         throw new Exception("文档页数过多 (>50页)，建议拆分后比对");
 
                     int totalDiffCount = 0;
+                    var newLeftPages = new List<PageDiffData>();
+                    var newRightPages = new List<PageDiffData>();
 
-                    // 2. 循环处理每一页
-                    for (int i = 0; i < maxPages; i++)
+                    var parallelOptions = new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount };
+
+                    // 2. 循环处理每一页 (直接复用内存中的 Bitmap 图片，快如闪电)
+                    Parallel.For(0, maxPages, parallelOptions, i =>
                     {
-                        var imgA = RenderPdfPage(oldVer.FilePath, i, dpi);
-                        var imgB = RenderPdfPage(newVer.FilePath, i, dpi);
+                        Bitmap originalImgA = i < leftPages.Count ? leftPages[i].Image : null;
+                        Bitmap originalImgB = i < rightPages.Count ? rightPages[i].Image : null;
 
                         List<DiffRegion> regions = new List<DiffRegion>();
 
-                        if (imgA != null && imgB != null)
+                        if (originalImgA != null && originalImgB != null)
                         {
-                            // 视觉比对
-                            regions = PdfDiffEngine.DetectAndOptimize(imgA, imgB);
+                            // 【非常关键】：因为原图 (originalImgA/B) 当前正被 UI 控件显示着。
+                            // 在后台多线程进行 LockBits 像素扫描时，如果 UI 线程同时触发了重绘，
+                            // 就会发生资源抢占，导致 "GDI+ 一般性错误" 程序崩溃。
+                            // 解决办法：在比对前，快速克隆一份只用于后台计算的安全副本。
+                            using (Bitmap cloneA = new Bitmap(originalImgA))
+                            using (Bitmap cloneB = new Bitmap(originalImgB))
+                            {
+                                regions = PdfDiffEngine.DetectAndOptimize(cloneA, cloneB);
+                            }
                         }
 
-                        totalDiffCount += regions.Count;
+                        lock (newLeftPages)
+                        {
+                            // 3. 组装新数据，重点是 Image 属性【必须继续指向】原来的 originalImgA/B
+                            // 【核心修复】：增加 null 判断，只有真实存在的页面才添加，避免两侧页数不一致时出现 100x100 的空白占位块
+                            if (originalImgA != null)
+                            {
+                                newLeftPages.Add(new PageDiffData { Image = originalImgA, Regions = null, PageIndex = i });
+                            }
 
-                        oldPagesData.Add(new PageDiffData { Image = imgA, Regions = null, PageIndex = i });
-                        newPagesData.Add(new PageDiffData { Image = imgB, Regions = regions, PageIndex = i });
-                    }
+                            if (originalImgB != null)
+                            {
+                                newRightPages.Add(new PageDiffData { Image = originalImgB, Regions = regions, PageIndex = i });
+                            }
+
+                            Interlocked.Add(ref totalDiffCount, regions.Count);
+                        }
+                    });
+
+                    // 重新按页码排序
+                    newLeftPages = newLeftPages.OrderBy(p => p.PageIndex).ToList();
+                    newRightPages = newRightPages.OrderBy(p => p.PageIndex).ToList();
 
                     this.Invoke(new Action(() =>
                     {
+                        if (this.IsDisposed || !this.IsHandleCreated) return;
 
-                        // 设置数据
-                        viewerLeft.SetPages(oldPagesData);
-                        viewerRight.SetPages(newPagesData);
+                        // 将携带了高亮框的新数据重新绑定给控件
+                        viewerLeft.SetPages(newLeftPages);
+                        viewerRight.SetPages(newRightPages);
 
-                        // 联动滚动：左侧滚动时同步右侧 (可选)
-                        // viewerRight.Scroll += (s, ev) => viewerLeft.ScrollToRatio(viewerRight.GetScrollRatio());
-
-                        string msg = $"全文档比对完成 (共 {maxPages} 页)：发现 {totalDiffCount} 处视觉差异";
-
+                        string msg = $"内存极速比对完成 (共 {maxPages} 页)：发现 {totalDiffCount} 处视觉差异";
                         AntdUI.Message.success(this, msg);
                     }));
                 }
                 catch (Exception ex)
                 {
-                    this.Invoke(new Action(() =>
-                    {
-                        AntdUI.Message.error(this, "比对出错：" + ex.Message);
-                    }));
+                    throw new Exception("比对出错：" + ex.Message);
                 }
             });
-        }
+            
 
-        private int GetPageCount(string path)
-        {
-            try
-            {
-                using (var doc = PdfDocument.Load(path))
-                {
-                    return doc.PageCount;
-                }
-            }
-            catch { return 0; }
         }
 
         private Bitmap RenderPdfPage(string filePath, int pageIndex, float dpi)
@@ -228,8 +312,8 @@ namespace BizLink.MES.WinForms.Forms
                     // 使用 using 块一次性打开文档，性能比循环中反复 Load 高得多
                     using (var doc = PdfDocument.Load(filePath))
                     {
-                        int pageCount = GetPageCount(filePath);
-
+                        //int pageCount = GetPageCount(filePath);
+                        int pageCount = doc.PageCount;
                         // 限制页数，防止过大文件撑爆内存
                         if (pageCount > 100)
                             throw new Exception("文档过大 (>100页)，请拆分后上传");
@@ -254,6 +338,7 @@ namespace BizLink.MES.WinForms.Forms
                     // 4. 回到主线程更新 UI
                     this.Invoke(new Action(() =>
                     {
+                        if (this.IsDisposed || !this.IsHandleCreated) return; // 增加此行防御
                         targetViewer.SetPages(pagesData);
                         // AntdUI.Message.success(this, $"已加载: {Path.GetFileName(filePath)}");
                     }));
@@ -288,59 +373,230 @@ namespace BizLink.MES.WinForms.Forms
             }
         }
 
-        private void UploadButton_Click(object sender, EventArgs e)
+        private async void UploadButton_Click(object sender, EventArgs e)
         {
-            using (var ofd = new OpenFileDialog { Filter = "PDF Files|*.pdf" })
-            {
-                if (ofd.ShowDialog() == DialogResult.OK)
-                {
-                    viewerRight.SetPages(null);
 
-                    //var verTag = $"v1.{versionList.Count}";
-                    var newVer = new DocVersion
+            await RunAsync(UploadButton, async () =>
+            {
+                using (var ofd = new OpenFileDialog { Filter = "PDF Files|*.pdf" })
+                {
+                    if (ofd.ShowDialog() == DialogResult.OK)
                     {
-                        //VersionTag = verTag,
-                        FileName = Path.GetFileName(ofd.FileName),
-                        FilePath = ofd.FileName,
-                        RawTime = DateTime.Now,
-                        UploadTime = DateTime.Now.ToString("MM-dd HH:mm")
-                    };
-                    DisplayPdfOnViewer(newVer.FilePath, viewerRight);
-                    AntdUI.Message.success(this, $"上传成功：{newVer.FileName}");
+                        viewerRight.SetPages(null);
+
+                        //var verTag = $"v1.{versionList.Count}";
+                        var newVer = new DocVersion
+                        {
+                            //VersionTag = verTag,
+                            FileName = Path.GetFileName(ofd.FileName),
+                            FilePath = ofd.FileName,
+                            RawTime = DateTime.Now,
+                            UploadTime = DateTime.Now.ToString("MM-dd HH:mm")
+                        };
+                        DisplayPdfOnViewer(newVer.FilePath, viewerRight);
+                        DocNameInput.Text = newVer.FileName;
+                        _currentLocalFilePath = newVer.FilePath;
+                        Bitmap firstPageImage = RenderPdfPage(newVer.FilePath, 0, 300f); // 150f或300f 渲染清晰度
+
+                        if (firstPageImage != null)
+                        {
+                            // 调用 Tesseract 提取器
+                            var extractedData = TesseractExtractor.ExtractFromImage(firstPageImage);
+
+                            // UI 赋值 (注意如果是在 Task 里，需要 Invoke 回主线程)
+                            this.Invoke(new Action(() =>
+                            {
+                                if (!string.IsNullOrEmpty(extractedData.DocumentNo))
+                                {
+                                    // 3. UI 赋值
+                                    DocumentNoInput.Text = extractedData.DocumentNo;
+                                    ConstructionNoInput.Text = extractedData.ConstructionNo;
+                                    ProcessDescInput.Text = extractedData.ProcessName;
+                                    AntdUI.Message.success(this, $"提取文件编号: {extractedData.DocumentNo}");
+                                }
+                            }));
+                        }
+                        AntdUI.Message.success(this, $"上传成功：{newVer.FileName}");
+                    }
                 }
+            });
+
+        }
+
+        private async void SubmitButton_Click(object sender, EventArgs e)
+        {
+            await RunAsync(SubmitButton, async () =>
+            {
+                // 1. 从界面的 TextBox 等控件获取用户确认后的数据
+                // (假设界面控件命名如下，您可以根据实际情况替换)
+                string documentNo = DocumentNoInput.Text.Trim();
+                string constructionNo = ConstructionNoInput.Text.Trim();
+                string processName = ProcessDescInput.Text.Trim();
+                string remark = RemarkInput.Text.Trim();
+
+                string localFilePath = _currentLocalFilePath;
+
+                // 2. 基础防呆校验
+                if (string.IsNullOrEmpty(localFilePath) || !File.Exists(localFilePath))
+                    throw new Exception("请先选择并上传有效的 PDF 文件！");
+                if (string.IsNullOrEmpty(documentNo) || string.IsNullOrEmpty(constructionNo))
+                    throw new Exception("文件编号和图纸号不能为空！");
+                var factory = await _factoryService.GetByIdAsync(AppSession.CurrentFactoryId);
+
+                var doc = await _wiDocumentService.GetByDocumentNoAsync(documentNo);
+                if (doc != null)
+                    throw new Exception($"当前文件编号{documentNo}已存在，请勿重复上传！");
+
+
+                // 构建之前生成的数据库实体对象
+                var newDoc = new WiDocumentCreateDto
+                {
+                    FactoryId = factory.Id,
+                    FactoryCode = factory.FactoryCode,
+                    DocumentNo = documentNo,
+                    ConstructionNo = constructionNo,
+                    ProcessName = processName,
+                    DocVersion = documentNo.LastIndexOf('-') != -1 ? documentNo[(documentNo.LastIndexOf('-') + 1)..] : string.Empty,
+                    DocumentName = Path.GetFileName(localFilePath), // 原始文件名
+                    Status = "Pending",                             // 初始状态为待审核
+                    IsActive = false,                               // 待审核状态下不作为有效版本
+                    Remark = remark,
+                    CreatedBy = AppSession.CurrentUser.EmployeeId
+                };
+
+                await _wiDocumentService.UploadAndSaveAsync(localFilePath, newDoc);
+
+                await LoadConstructionNoAsync();
+
+
+            }, confirmMsg: "即将更新最新WI文件，是否继续？", successMsg: "保存成功！");
+        }
+
+        private async void ConstructionNoSelect_SelectedValueChanged(object sender, ObjectNEventArgs e)
+        {
+
+            if (e.Value == null)
+                return;
+            await RunAsync(async () =>
+            {
+                DocumentNoSelect.Items.Clear();
+                var documentNos = await _wiDocumentService.GetListByConstructionAsync(((MenuItem)e.Value).Name);
+                if (documentNos.Any())
+                {
+                    DocumentNoSelect.Items.AddRange(documentNos.Select(x => x.DocumentNo).Distinct().Select(x => new MenuItem()
+                    {
+                        Name = x,
+                        Text = x
+                    }).ToArray());
+                }
+            });
+        }
+
+        public async Task LoadPdfFromServerToMemoryAsync(string serverRelativePath, PdfViewerControl targetViewer)
+        {
+            try
+            {
+                string apiBaseUrl = _apiSettings.BaseUrl;
+                string fileUrl = apiBaseUrl + serverRelativePath.TrimStart('/');
+
+                using (HttpClient client = new HttpClient())
+                {
+                    // 1. 直接将服务器文件下载为字节数组（都在内存中发生）
+                    byte[] fileBytes = await client.GetByteArrayAsync(fileUrl);
+
+                    // 2. 将字节数组转换为内存流
+                    // 注意：不要在这里加 using 释放 MemoryStream，因为 PdfiumViewer 渲染期间需要一直持有这个流
+                    MemoryStream pdfStream = new MemoryStream(fileBytes);
+
+                    // 3. 调用新的从 Stream 渲染的方法
+                    DisplayPdfFromStream(pdfStream, targetViewer);
+                }
+            }
+            catch (Exception ex)
+            {
+                AntdUI.Message.error(this, "从服务器加载文件时出错: " + ex.Message);
             }
         }
 
-        private async void MaterialInput_KeyPress(object sender, KeyPressEventArgs e)
+        public void DisplayPdfFromStream(Stream pdfStream, PdfViewerControl targetViewer)
         {
-            if (e.KeyChar != '\r')
+            if (pdfStream == null || pdfStream.Length == 0)
+            {
+                AntdUI.Message.error(this, "PDF 文件流无效");
+                return;
+            }
+
+            targetViewer.ClearResources();
+
+            Task.Run(() =>
+            {
+                try
+                {
+                    float dpi = 150f;
+                    var pagesData = new List<PageDiffData>();
+
+                    // 【核心区别】：从内存流中加载 PDF
+                    using (var doc = PdfDocument.Load(pdfStream))
+                    {
+                        int pageCount = doc.PageCount;
+                        if (pageCount > 100)
+                            throw new Exception("文档过大 (>100页)，请拆分");
+
+                        for (int i = 0; i < pageCount; i++)
+                        {
+                            var img = RenderPageFromDoc(doc, i, dpi);
+                            if (img != null)
+                            {
+                                pagesData.Add(new PageDiffData
+                                {
+                                    PageIndex = i,
+                                    Image = img,
+                                    Regions = null
+                                });
+                            }
+                        }
+                    }
+
+                    // PDF 渲染完毕，可以安全地释放内存流了
+                    pdfStream.Dispose();
+
+                    this.Invoke(new Action(() =>
+                    {
+                        targetViewer.SetPages(pagesData);
+                    }));
+                }
+                catch (Exception ex)
+                {
+                    pdfStream.Dispose(); // 发生异常也要记得释放流
+                    this.Invoke(new Action(() =>
+                    {
+                        AntdUI.Message.error(this, "PDF 渲染失败: " + ex.Message);
+                    }));
+                }
+            });
+        }
+
+        private async void DocumentNoSelect_SelectedValueChanged(object sender, ObjectNEventArgs e)
+        {
+            if (e.Value == null)
                 return;
 
-            await RunAsync(async () =>
+            await RunAsync(async () => 
             {
-                var materialcode = MaterialInput.Text.Trim();
-                if (string.IsNullOrWhiteSpace(materialcode))
-                    throw new Exception("输入的物料号无效，请重新输入");
-                var factoryDto = await _factoryService.GetByIdAsync(AppSession.CurrentFactoryId);
-                var materialDto = await _materialViewService.GetByCodeAsync(factoryDto.FactoryCode, materialcode);
-                if (materialDto == null)
-                    throw new Exception("未查询到物料信息，请检查物料号！");
-                MaterialCodeInput.Text = materialDto.MaterialCode;
-                MaterialDescInput.Text = materialDto.MaterialName;
-
-                var documents = await _wiDocumentService.GetListByMaterialCodeAsync(AppSession.CurrentFactoryId, materialDto.MaterialCode);
-                if (documents != null && documents.Count() > 0)
+                if (string.IsNullOrWhiteSpace(((MenuItem)e.Value).Name))
+                    throw new Exception("请重新选择文件编号！");
+                var doc = await _wiDocumentService.GetByDocumentNoAsync(((MenuItem)e.Value).Name);
+                if (doc != null && !string.IsNullOrEmpty(doc.DocumentPath))
                 {
-                    DocVersionSelect.Items.Clear();
-                    DocVersionSelect.Items.AddRange(documents.Select(d => new MenuItem()
-                    {
-                        Name = d.Id.ToString(),
-                        Text = d.DocVersion
-                    }).ToArray());
+                    var pathObj = Newtonsoft.Json.Linq.JObject.Parse(doc.DocumentPath);
+
+                    // 2. 获取值并明确转为标准的 string 字符串 (兼容 filePath 和 FilePath 大小写)
+                    string serverPath = pathObj["filePath"]?.ToString() ?? pathObj["FilePath"]?.ToString();
+                    await LoadPdfFromServerToMemoryAsync(serverPath, viewerLeft);
                 }
-
+                else
+                    throw new Exception($"未获取到文件编号{((MenuItem)e.Value).Name}的文件，请重新上传！");
             });
-
         }
     }
 
@@ -411,11 +667,20 @@ namespace BizLink.MES.WinForms.Forms
 
         // 新增：资源清理方法 (防止内存泄漏)
         // 销毁时清理悬浮窗
+
+        /// <summary>
+        /// 获取当前控件中已加载的所有页面数据
+        /// </summary>
+        public List<PageDiffData> GetPagesData()
+        {
+            return _pagesData;
+        }
         protected override void Dispose(bool disposing)
         {
             if (disposing)
             {
                 _popupWindow?.Dispose();
+                ClearResources(); // 必须加上这行，清理内部存储的所有 Bitmap 和 ImageSnippet
             }
             base.Dispose(disposing);
         }
@@ -651,9 +916,9 @@ namespace BizLink.MES.WinForms.Forms
             // 边界检测：防止超出屏幕右侧或下侧
             Screen screen = Screen.FromPoint(mouseScreenPos);
             if (x + totalW > screen.WorkingArea.Right)
-                x = mouseScreenPos.X - totalW - 10;
+                x = screen.WorkingArea.Right - totalW; // 直接贴住右边缘
             if (y + totalH > screen.WorkingArea.Bottom)
-                y = mouseScreenPos.Y - totalH - 10;
+                y = screen.WorkingArea.Bottom - totalH; // 直接贴住下边缘
 
             this.Location = new Point(x, y);
 
@@ -1063,9 +1328,13 @@ namespace BizLink.MES.WinForms.Forms
 
                 if (c.Width > 0 && c.Height > 0)
                 {
-                    region.OldImageSnippet = bmpA.Clone(c, bmpA.PixelFormat);
-                    region.NewImageSnippet = bmpB.Clone(c, bmpB.PixelFormat);
-                    region.RelativeRect = new Rectangle(region.Rect.X - c.X, region.Rect.Y - c.Y, region.Rect.Width, region.Rect.Height);
+                    if (c.Right <= bmpA.Width && c.Bottom <= bmpA.Height) 
+                    {
+                        region.OldImageSnippet = bmpA.Clone(c, bmpA.PixelFormat);
+                        region.NewImageSnippet = bmpB.Clone(c, bmpB.PixelFormat);
+                        region.RelativeRect = new Rectangle(region.Rect.X - c.X, region.Rect.Y - c.Y, region.Rect.Width, region.Rect.Height);
+
+                    }
                 }
             }
         }
@@ -1104,6 +1373,217 @@ namespace BizLink.MES.WinForms.Forms
             // 如果差异像素超过区域面积的 50%，通常是图片替换或大面积高亮 -> Image
             // 否则通常是文字修改 -> Text
             return density > 0.5 ? DiffType.Image : DiffType.Text;
+        }
+    }
+
+    public class TesseractExtractor
+    {
+        public class ProcessCardData
+        {
+            public string DocumentNo { get; set; }     // 文件编号
+            public string ConstructionNo { get; set; } // 图纸号
+            public string ProcessName { get; set; }    // 工艺名称
+        }
+
+        // 定义我们自己的文本块结构，统一处理坐标
+        public class TextBlock
+        {
+            public string Text { get; set; }
+            public Rectangle BoundingBox { get; set; }
+        }
+
+        private static Dictionary<string, string> OcrCorrections = new Dictionary<string, string>();
+
+        /// <summary>
+        /// 提供给外部（如 WinForm 加载时从数据库读取后）设置纠错字典的方法
+        /// </summary>
+        public static void SetCorrections(Dictionary<string, string> dict)
+        {
+            if (dict != null)
+            {
+                OcrCorrections = dict;
+            }
+        }
+
+        /// <summary>
+        /// 后处理文本清洗，替换 OCR 常犯的错误
+        /// </summary>
+        private static string CorrectOcrText(string text)
+        {
+            if (string.IsNullOrEmpty(text)) return text;
+
+            foreach (var kvp in OcrCorrections)
+            {
+                if (text.Contains(kvp.Key))
+                {
+                    text = text.Replace(kvp.Key, kvp.Value);
+                }
+            }
+            return text;
+        }
+
+        /// <summary>
+        /// 传入你通过 PdfiumViewer 渲染出来的 Bitmap 进行识别
+        /// </summary>
+        public static ProcessCardData ExtractFromImage(Bitmap pdfPageImage)
+        {
+            var result = new ProcessCardData();
+
+            // 检查语言包是否存在
+            string tessdataPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "tessdata");
+            if (!Directory.Exists(tessdataPath) || !File.Exists(Path.Combine(tessdataPath, "chi_sim.traineddata")))
+            {
+                throw new Exception("找不到 tessdata 语言包目录或文件，请确保已设置为【如果较新则复制】。");
+            }
+
+            try
+            {
+                // 初始化 Tesseract 引擎，指定语言为中文简体+英文 (chi_sim+eng)
+                using (var engine = new TesseractEngine(tessdataPath, "chi_sim+eng", EngineMode.Default))
+                {
+                    // 【关键修复】：将 Bitmap 存入内存流，转换为 byte[]，避开 PixConverter
+                    byte[] imgBytes;
+                    using (var ms = new MemoryStream())
+                    {
+                        // 保存为 BMP 格式速度极快且无损
+                        pdfPageImage.Save(ms, System.Drawing.Imaging.ImageFormat.Bmp);
+                        imgBytes = ms.ToArray();
+                    }
+
+                    // Tesseract 提供的方法：直接从内存字节加载 Pix
+                    using (var pix = Pix.LoadFromMemory(imgBytes))
+                    {
+                        using (var page = engine.Process(pix))
+                        {
+                            var blocks = new List<TextBlock>();
+
+                            // 获取迭代器，以"词(Word)"为单位遍历识别结果和坐标
+                            using (var iter = page.GetIterator())
+                            {
+                                iter.Begin();
+                                do
+                                {
+                                    if (iter.TryGetBoundingBox(PageIteratorLevel.Word, out Rect bounds))
+                                    {
+                                        string text = iter.GetText(PageIteratorLevel.Word)?.Trim();
+                                        if (!string.IsNullOrWhiteSpace(text))
+                                        {
+                                            blocks.Add(new TextBlock
+                                            {
+                                                Text = text,
+                                                BoundingBox = new Rectangle(bounds.X1, bounds.Y1, bounds.Width, bounds.Height)
+                                            });
+                                        }
+                                    }
+                                } while (iter.Next(PageIteratorLevel.Word));
+                            }
+
+                            // 利用空间关系提取数据
+                            //result.DocumentNo = FindTextBelowAnchor(blocks, "文件编号");
+                            //result.ConstructionNo = FindTextBelowAnchor(blocks, "图纸号");
+                            //result.ProcessName = FindTextBelowAnchor(blocks, "工艺名称");
+                            // 利用空间关系提取数据，并经过【纠错字典】过滤
+                            result.DocumentNo = CorrectOcrText(FindTextBelowAnchor(blocks, "文件编号", removeChinese: true));
+                            result.ConstructionNo = CorrectOcrText(FindTextBelowAnchor(blocks, "图纸号", removeChinese: true));
+                            result.ProcessName = CorrectOcrText(FindTextBelowAnchor(blocks, "工艺名称"));
+
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                // 捕获异常
+                Console.WriteLine($"Tesseract OCR识别失败: {ex.Message}");
+            }
+
+            return result;
+        }
+
+        /// <summary>
+        /// 核心空间检索算法：寻找锚点下方指定区域内的文本
+        /// </summary>
+        private static string FindTextBelowAnchor(
+                   List<TextBlock> blocks,
+                   string anchorKeyword,
+                   bool removeChinese = false, // 【新增参数】是否强制移除中文字
+                   int searchHeight = 80, // 【关键修改】：适配 300 DPI，图像变大，向下搜索范围翻倍（原来是30）
+                   int xToleranceLeft = 40, // 适配 300 DPI，左侧容差翻倍
+                   int xToleranceRight = 300) // 适配 300 DPI，右侧容差翻倍，兼容超长编号
+        {
+            // 1. 寻找锚点文字 (修复 Tesseract 将中文字符拆分成多个独立单字 Block 的问题)
+            Rectangle? anchorBox = null;
+            string cleanKeyword = anchorKeyword.Replace(" ", "");
+
+            for (int i = 0; i < blocks.Count; i++)
+            {
+                string combinedText = "";
+                int minX = int.MaxValue;
+                int minY = int.MaxValue;
+                int maxX = int.MinValue;
+                int maxY = int.MinValue;
+
+                // 向后拼接最多 10 个词
+                for (int j = i; j < Math.Min(i + 10, blocks.Count); j++)
+                {
+                    combinedText += blocks[j].Text.Replace(" ", "");
+
+                    minX = Math.Min(minX, blocks[j].BoundingBox.Left);
+                    minY = Math.Min(minY, blocks[j].BoundingBox.Top);
+                    maxX = Math.Max(maxX, blocks[j].BoundingBox.Right);
+                    maxY = Math.Max(maxY, blocks[j].BoundingBox.Bottom);
+
+                    if (combinedText.Contains(cleanKeyword))
+                    {
+                        // 【核心修复】：防止由于起点太靠前，导致把无关文字（如BizLink）也框进去产生巨型锚点。
+                        // 这里判断：如果合并出来的文字长度，跟我们要找的关键字长度相差不大（允许带点标点），
+                        // 才说明这是真正的关键字区域，而不是一整段文字包含了关键字。
+                        if (combinedText.Length <= cleanKeyword.Length + 3)
+                        {
+                            anchorBox = new Rectangle(minX, minY, maxX - minX, maxY - minY);
+                        }
+
+                        // 一旦包含了该关键字，说明匹配结束，强制跳出内层循环
+                        break;
+                    }
+                }
+
+                if (anchorBox != null) break;
+            }
+
+            if (anchorBox == null)
+                return string.Empty;
+
+            // 原点 (0,0) 在图片左上角
+            int anchorBottomY = anchorBox.Value.Bottom;
+            int anchorLeftX = anchorBox.Value.Left;
+            int anchorRightX = anchorBox.Value.Right;
+
+            // 2. 筛选出落在这个不可见“矩形框”内的所有文字
+            var targetBlocks = blocks.Where(b =>
+                // Y轴：文字的中心点在锚点下方 0 到 searchHeight 的范围内
+                b.BoundingBox.Y + (b.BoundingBox.Height / 2) > anchorBottomY &&
+                b.BoundingBox.Y + (b.BoundingBox.Height / 2) < anchorBottomY + searchHeight &&
+                // X轴：允许左侧略微超出，右侧大幅超出（因为目标数据通常比表头长）
+                b.BoundingBox.X + (b.BoundingBox.Width / 2) >= anchorLeftX - xToleranceLeft &&
+                b.BoundingBox.X + (b.BoundingBox.Width / 2) <= anchorRightX + xToleranceRight
+            )
+            .OrderBy(b => b.BoundingBox.Left) // 按从左到右排序
+            .ToList();
+
+            if (!targetBlocks.Any())
+                return string.Empty;
+            // 3. 拼合内容
+            string extractedText = string.Join("", targetBlocks.Select(b => b.Text)).Trim();
+
+            // 4. 【新增清洗逻辑】：如果指定该字段不包含中文，则直接使用正则表达式过滤掉所有中文汉字
+            if (removeChinese && !string.IsNullOrEmpty(extractedText))
+            {
+                // \u4e00-\u9fa5 是基本汉字在 Unicode 中的范围
+                extractedText = Regex.Replace(extractedText, @"[\u4e00-\u9fa5]", "");
+            }
+
+            return extractedText;
         }
     }
 }

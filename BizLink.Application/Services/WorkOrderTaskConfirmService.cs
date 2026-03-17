@@ -280,5 +280,10 @@ namespace BizLink.MES.Application.Services
 
         }
 
+        public async Task<List<WorkOrderTaskConfirmDto>> GetListByTaskIdAsync(List<int> taskids)
+        {
+            var entities = await _workOrderTaskConfirmRepository.GetListByTaskIdAsync(taskids);
+            return _mapper.Map<List<WorkOrderTaskConfirmDto>>(entities);
+        }
     }
 }

@@ -10,5 +10,10 @@ namespace BizLink.MES.Domain.Repositories
 {
     public interface IWorkOrderOperationTaskRepository :IGenericRepository<WorkOrderOperationTask>
     {
+        Task<List<WorkOrderOperationTask>> GetByIdAsync(List<int> ids);
+
+        Task<List<WorkOrderOperationTask>> GetListByProcessIdAsync(List<int> processIds);
+
+        Task<List<WorkOrderOperationTask>> GetListByOrderIdAsync(int orderId);
     }
 }

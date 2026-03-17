@@ -46,6 +46,10 @@ namespace BizLink.MES.Application.DTOs
             get; set;
         }
 
+        public decimal? CompletedQuantity
+        {
+            get; set;
+        }
         public string? TargetUnit
         {
             get; set;
@@ -88,6 +92,26 @@ namespace BizLink.MES.Application.DTOs
             get; set;
         }
 
+        public int? ActualWorkStationId
+        {
+            get; set;
+        }
+
+
+        public int? ActualWorkCenterId
+        {
+            get; set;
+        }
+
+        public string? ActualWorkCenterCode
+        {
+            get; set;
+        }
+
+        public string? ActualWorkStationCode
+        {
+            get; set;
+        }
         public string? Status
         {
             get; set;
@@ -247,6 +271,11 @@ namespace BizLink.MES.Application.DTOs
             get; set;
         }
 
+        public decimal? CompletedQuantity
+        {
+            get; set;
+        }
+
         public string? TargetUnit
         {
             get; set;
@@ -287,7 +316,27 @@ namespace BizLink.MES.Application.DTOs
         public int? Priority
         {
             get; set;
-        } = 0;
+        }
+
+        public int? ActualWorkStationId
+        {
+            get; set;
+        }
+
+        public int? ActualWorkCenterId
+        {
+            get; set;
+        }
+
+        public string? ActualWorkCenterCode
+        {
+            get; set;
+        }
+
+        public string? ActualWorkStationCode
+        {
+            get; set;
+        }
 
         public string? Status
         {

@@ -32,5 +32,7 @@ namespace BizLink.MES.Domain.Repositories
 
         Task<bool> UpdateBatchAsync(List<WorkOrderProcess> entities);
 
+        Task<List<WorkOrderProcess>> GetNeedReceiptWorkOrderProcessAsync(int factoryId, DateTime? startDate, DateTime? endDate, string? workCenter);
+
     }
 }

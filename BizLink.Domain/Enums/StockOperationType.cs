@@ -71,7 +71,7 @@ namespace BizLink.MES.Domain.Enums
         ReversalofGoodsIssuetoCostCenter = 12,
 
 
-        [Description("2100移库")]
+        [Description("订单补料")]
         ProductLineStockTransfer = 13,
 
         [Description("Mes库存增加")]

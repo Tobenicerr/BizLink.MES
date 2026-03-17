@@ -37,6 +37,8 @@ namespace BizLink.MES.WinForms.Forms.WebReportForm
 
             KeywordInput.PlaceholderText = "请输入关键字...";
             CreateDatePicker.PlaceholderText = "请选择创建日期...";
+            CreateDatePickerRange.PlaceholderStart = "请选择创建开始日期";
+            CreateDatePickerRange.PlaceholderEnd = "请选择创建结束日期";
         }
 
         private void InitializeTable()
@@ -111,7 +113,10 @@ namespace BizLink.MES.WinForms.Forms.WebReportForm
             var keyword = KeywordInput.Text.Trim();
             var createDate = CreateDatePicker.Value;
             var factory = await _factoryService.GetByIdAsync(AppSession.CurrentFactoryId);
-            var result = await _sapOrderScrapDeclarationService.GetPageListAsync(pageIndex, pageSize, factory.FactoryCode, keyword, createDate);
+            var datearr = CreateDatePickerRange.Value;
+            DateTime? startdate = datearr != null ? datearr[0] : null;
+            DateTime? endDate = (datearr != null && datearr[1] != null) ? datearr[1] : null;
+            var result = await _sapOrderScrapDeclarationService.GetPageListAsync(pageIndex, pageSize, factory.FactoryCode, keyword, startdate, endDate);
             if (result != null)
             {
                 //var materialCodes = result.Items.Select(i => i.ScrapMaterialCode).Distinct().ToList();

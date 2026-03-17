@@ -22,9 +22,9 @@ namespace BizLink.MES.Application.Services
             return await _workOrderInProgressViewRepository.GetByOrderNoAsync(orderno);
         }
 
-        public async Task<PagedResultDto<V_WorkOrderInProgress>> GetCableTaskPageListAsync(int pageIndex, int pageSize, string? keyword = null, List<string>? workOrderNo = null, DateTime? startTime = null, int? workcenterId = null, int? workStationId = null, string? status = null)
+        public async Task<PagedResultDto<V_WorkOrderInProgress>> GetCableTaskPageListAsync(int pageIndex, int pageSize,int factoryId, string? keyword = null, List<string>? workOrderNo = null, DateTime? startTime = null, int? workcenterId = null, int? workStationId = null, string? status = null)
         {
-            var (result,totalCount) =  await _workOrderInProgressViewRepository.GetCableTaskPageListAsync(pageIndex, pageSize, keyword, workOrderNo, startTime, workcenterId, workStationId,status);
+            var (result,totalCount) =  await _workOrderInProgressViewRepository.GetCableTaskPageListAsync(pageIndex, pageSize, factoryId, keyword, workOrderNo, startTime, workcenterId, workStationId,status);
 
             return new PagedResultDto<V_WorkOrderInProgress> { Items = result, TotalCount = totalCount };
         }

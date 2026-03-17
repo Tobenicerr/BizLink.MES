@@ -22,5 +22,7 @@ namespace BizLink.MES.Application.Services
         /// <param name="confirmId">报工记录ID</param>
         /// <returns>操作结果消息</returns>
         Task<string> ReSendConfirmationToSapAsync(int confirmId);
+
+        Task<(bool, string)> FinishedGoodsReceiptToSapAsync(int receiptId);
     }
 }

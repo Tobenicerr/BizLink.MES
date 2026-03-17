@@ -45,9 +45,16 @@ namespace BizLink.MES.Application.Services
             throw new NotImplementedException();
         }
 
-        public Task<IEnumerable<WiDocumentDto>> GetAllAsync()
+        public async Task<IEnumerable<WiDocumentDto>> GetAllAsync()
         {
-            throw new NotImplementedException();
+            var entities = await _wiDocumentRepository.GetAllAsync();
+            return _mapper.Map<List<WiDocumentDto>>(entities);
+        }
+
+        public async Task<WiDocumentDto> GetByDocumentNoAsync(string documentNo)
+        {
+            var entity = await _wiDocumentRepository.GetByDocumentNoAsync(documentNo);
+            return _mapper.Map<WiDocumentDto>(entity);
         }
 
         public Task<WiDocumentDto> GetByIdAsync(int id)
@@ -55,9 +62,9 @@ namespace BizLink.MES.Application.Services
             throw new NotImplementedException();
         }
 
-        public async Task<List<WiDocumentDto>> GetListByMaterialCodeAsync(int factoryid, string materialcode)
+        public async Task<List<WiDocumentDto>> GetListByConstructionAsync(string constructionNo)
         {
-            var entities = await _wiDocumentRepository.GetListByMaterialCodeAsync(factoryid, materialcode);
+            var entities = await _wiDocumentRepository.GetListByConstructionAsync(constructionNo);
             return _mapper.Map<List<WiDocumentDto>>(entities);
         }
 
@@ -95,12 +102,12 @@ namespace BizLink.MES.Application.Services
             };
 
             // 这里的 string 是指后端返回的数据类型，例如返回文件路径
-            var result = await _apiClient.UploadFileAsync<dynamic>(url, localFilePath, formData);
+            var result = await _apiClient.UploadFileAsync<object>(url, localFilePath, formData);
 
             if (result.IsSuccess)
             {
                 // 假设后端返回 { "filePath": "/Resources/..." }
-                return result.Data.filePath.ToString();
+                return result.Data.ToString();
             }
             else
             {

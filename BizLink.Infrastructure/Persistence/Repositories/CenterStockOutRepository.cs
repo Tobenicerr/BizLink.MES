@@ -25,7 +25,7 @@ namespace BizLink.MES.Infrastructure.Persistence.Repositories
 
         public async Task<List<V_CenterStockOut>> GetListAsync()
         {
-            return await _dbs.Queryable<V_CenterStockOut>().ToListAsync();
+            return await _dbs.Queryable<V_CenterStockOut>().With(SqlWith.NoLock).ToListAsync();
         }
 
         public async Task<List<V_CenterStockOut>> GetListByWorkOrderAsync(string workorder)
@@ -35,7 +35,7 @@ namespace BizLink.MES.Infrastructure.Persistence.Repositories
 
         public async Task<List<V_CenterStockOut>> GetListByWorkOrderAsync(List<string> workorder)
         {
-            return await _dbs.Queryable<V_CenterStockOut>().Where(x => workorder.Contains(x.WorkOrderNo)).ToListAsync();
+            return await _dbs.Queryable<V_CenterStockOut>().With(SqlWith.NoLock).Where(x => workorder.Contains(x.WorkOrderNo)).ToListAsync();
         }
     }
 }

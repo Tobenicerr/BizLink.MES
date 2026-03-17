@@ -19,7 +19,7 @@ namespace BizLink.MES.Application.Services
 
         Task<List<V_WorkOrderInProgress>> GetOngoingCableTaskListByDateAsync(int factoryid,DateTime datetime);
 
-        Task<PagedResultDto<V_WorkOrderInProgress>> GetCableTaskPageListAsync(int pageIndex,int pageSize,string? keyword = null,List<string>? workOrderNo = null,DateTime? startTime = null,int? workcenterId = null,int? workStationId = null, string? status = null);
+        Task<PagedResultDto<V_WorkOrderInProgress>> GetCableTaskPageListAsync(int pageIndex,int pageSize, int factoryId, string? keyword = null,List<string>? workOrderNo = null,DateTime? startTime = null,int? workcenterId = null,int? workStationId = null, string? status = null);
 
         Task<List<V_WorkOrderInProgress>> GetOverdueCableTaskListByDateAsync(int factoryid, string? keyword);
 

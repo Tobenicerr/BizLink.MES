@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using BizLink.MES.Application.DTOs;
+using Microsoft.AspNetCore.Mvc;
 
 namespace BizLink.MES.WebAPI.Controllers
 {
@@ -9,16 +10,14 @@ namespace BizLink.MES.WebAPI.Controllers
         [HttpPost("Upload")]
         // 限制上传文件大小，例如 10MB
         [RequestSizeLimit(10 * 1024 * 1024)]
-        public async Task<IActionResult> UploadFile(IFormFile file, [FromForm] string docType)
+        public async Task<ActionResult<ApiResponse<object>>> UploadFile(IFormFile file, [FromForm] string docType)
         {
             if (file == null || file.Length == 0)
-                return BadRequest("请选择文件");
-
+                return BadRequest(ApiResponse<object>.Fail("请选择文件"));
             // 验证扩展名
             var ext = Path.GetExtension(file.FileName).ToLower();
             if (ext != ".pdf")
-                return BadRequest("只允许上传 PDF 文件");
-
+                return BadRequest(ApiResponse<object>.Fail("只允许上传 PDF 文件"));
             // 1. 确定保存路径 (建议不要直接存数据库，存磁盘或OSS，数据库存路径)
             var folderName = Path.Combine("Resources", "PDFs", docType ?? "General");
             var pathToSave = Path.Combine(Directory.GetCurrentDirectory(), folderName);
@@ -37,11 +36,7 @@ namespace BizLink.MES.WebAPI.Controllers
 
             // 4. 返回相对路径或完整URL给客户端
             var dbPath = Path.Combine(folderName, fileName).Replace("\\", "/");
-            return Ok(new
-            {
-                FilePath = dbPath,
-                OriginalName = file.FileName
-            });
+            return Ok(ApiResponse<object>.Success(new { FilePath = dbPath, OriginalName = file.FileName }));
         }
     }
 }

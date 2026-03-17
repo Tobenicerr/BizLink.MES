@@ -10,7 +10,8 @@ namespace BizLink.MES.Domain.Repositories
 {
     public interface IWiDocumentRepository : IGenericRepository<WiDocument>
     {
+        Task<List<WiDocument>> GetListByConstructionAsync(string constructionNo);
 
-        Task<List<WiDocument>> GetListByMaterialCodeAsync(int factoryid, string materialcode);
+        Task<WiDocument> GetByDocumentNoAsync(string documentNo);
     }
 }

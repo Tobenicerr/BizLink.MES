@@ -21,7 +21,7 @@ namespace BizLink.MES.Application.DTOs
             get; set;
         }
 
-        public int? StepId
+        public int? WorkOrderProcessId
         {
             get; set;
         }
@@ -84,6 +84,16 @@ namespace BizLink.MES.Application.DTOs
             get; set;
         }
 
+        public DateTime? ActualStartTime
+        {
+            get; set;
+        }
+
+        public DateTime? ActualEndTime
+        {
+            get; set;
+        }
+
         public string? Status
         {
             get; set;
@@ -118,11 +128,6 @@ namespace BizLink.MES.Application.DTOs
     public class WorkOrderStepTaskCreateDto : IMapFrom<WorkOrderStepTask>
     {
         public int? OperationTaskId
-        {
-            get; set;
-        }
-
-        public int? StepId
         {
             get; set;
         }
@@ -163,6 +168,11 @@ namespace BizLink.MES.Application.DTOs
         }
 
         public decimal? Quantity
+        {
+            get; set;
+        }
+
+        public DateTime? ActualStartTime
         {
             get; set;
         }
@@ -214,10 +224,6 @@ namespace BizLink.MES.Application.DTOs
             get; set;
         }
 
-        public int? StepId
-        {
-            get; set;
-        }
 
         public string? StepCode
         {
@@ -278,6 +284,16 @@ namespace BizLink.MES.Application.DTOs
         }
 
         public string? Status
+        {
+            get; set;
+        }
+
+        public DateTime? ActualStartTime
+        {
+            get; set;
+        }
+
+        public DateTime? ActualEndTime
         {
             get; set;
         }

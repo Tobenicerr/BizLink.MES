@@ -50,6 +50,12 @@ namespace BizLink.MES.Application.Services
             return _mapper.Map<WorkOrderTaskExecuteConsumpDto>(entity);
         }
 
+        public async Task<List<WorkOrderTaskExecuteConsumpDto>> GetListByExecuteIdAsync(int exeId)
+        {
+            var entities = await _workOrderTaskExecuteConsumpRepository.GetListByExelogIdAsync(exeId);
+            return _mapper.Map<List<WorkOrderTaskExecuteConsumpDto>>(entities);
+        }
+
         public async Task<bool> UpdateAsync(WorkOrderTaskExecuteConsumpUpdateDto updateDto)
         {
             var entity = await _workOrderTaskExecuteConsumpRepository.GetByIdAsync(updateDto.Id);

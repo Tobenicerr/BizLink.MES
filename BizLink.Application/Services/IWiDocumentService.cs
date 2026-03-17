@@ -11,8 +11,11 @@ namespace BizLink.MES.Application.Services
     public interface IWiDocumentService : IGenericService<WiDocumentDto, WiDocumentCreateDto, WiDocumentUpdateDto>
     {
         Task<string> UploadPdfAsync(string localFilePath, string docType);
+        Task<WiDocumentDto> UploadAndSaveAsync(string localFilePath, WiDocumentCreateDto createDto);
 
-        Task<List<WiDocumentDto>> GetListByMaterialCodeAsync(int factoryid, string materialcode);
+        Task<List<WiDocumentDto>> GetListByConstructionAsync(string constructionNo);
+
+        Task<WiDocumentDto> GetByDocumentNoAsync(string documentNo);
 
     }
 }

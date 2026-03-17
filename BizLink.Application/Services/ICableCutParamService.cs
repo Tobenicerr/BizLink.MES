@@ -17,6 +17,8 @@ namespace BizLink.MES.Application.Services
 
         Task<List<CableCutParamDto>> GetListBySimiMaterialCodeAsync(List<string> semiMaterialCode);
 
+        Task<List<CableCutParamDto>> GetListBySimiMaterialCodeFromSapAsync(List<string> semiMaterialCode);
+
         Task<bool> DeleteByIdsAsync(List<int> ids);
     }
 }

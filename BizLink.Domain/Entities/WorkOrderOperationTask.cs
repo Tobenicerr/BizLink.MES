@@ -48,19 +48,26 @@ namespace BizLink.MES.Domain.Entities
         }
 
         [SugarColumn(IsNullable = true)]
-        public int? WorkCenterId
+        public string? WorkCenterCode
+        {
+            get; set;
+        }
+
+
+        [SugarColumn(IsNullable = true)]
+        public DateTime? DispatchDate
         {
             get; set;
         }
 
         [SugarColumn(IsNullable = true)]
-        public DateTime? StartTime
+        public DateTime? ActualStartTime
         {
             get; set;
         }
 
         [SugarColumn(IsNullable = true)]
-        public DateTime? EndTime
+        public DateTime? ActualEndTime
         {
             get; set;
         }
@@ -81,7 +88,7 @@ namespace BizLink.MES.Domain.Entities
         public DateTime? CreatedOn
         {
             get; set;
-        }
+        } = DateTime.Now;
 
         [SugarColumn(IsNullable = true, Length = 50)]
         public string? CreatedBy

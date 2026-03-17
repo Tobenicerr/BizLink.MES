@@ -56,6 +56,8 @@ namespace BizLink.MES.Shared.Helpers
         /// 获取系统中所有已安装的打印机名称列表.
         /// </summary>
         /// <returns>包含打印机名称的字符串数组.</returns>
+        /// 
+
         public static string[] GetInstalledPrinters()
         {
             var printerList = new System.Collections.Generic.List<string>();
@@ -66,8 +68,296 @@ namespace BizLink.MES.Shared.Helpers
             return printerList.ToArray();
         }
 
+
+        // 建议：后续将此路径移至配置文件 (appsettings.json)
+        private const string BartenderScanPath = @"\\svcn5bartp01\scan\";
+        private const string LayoutBasePath = @"D:\bartender\layout\";
+        public static bool ProcessLabelPrinter(string materialCode,string materialDesc,decimal quantity,string orderNo,string operationNo,string leadingMaterial,string workCenter,string nextWorkCenter,int labelCount,DateTime dispatchDate, string bagflag, string linesidelocation, PrinterType printerType, string printerName)
+        {
+            try
+            {
+                // 准备数据字段
+                string materialCodeE = materialCode.StartsWith("E") ? materialCode.Substring(1) : materialCode;
+                //string dispatchDate = dispatchDate.ToString("yyyy-MM-dd") ?? "";
+
+                if (printerType == PrinterType.NetworkPrinter)
+                {
+                    // 构造 CSV 数据行
+                    string csvData = $"\"{materialCode}\",\"{materialDesc}\",\"{Convert.ToInt32(quantity)}\",\"PCS\",\"\",\"{orderNo}-{operationNo}\",\"{orderNo}\",\"\",\"\",\"\",\"{workCenter}{bagflag}\",\"{nextWorkCenter}({linesidelocation})\",\"{leadingMaterial}\",\"{dispatchDate:d}\",\"{labelCount}\"";
+
+                    // 生成 XML
+                    string xmlContent = GenerateBartenderXml(
+                        $"{LayoutBasePath}BCN_CN11_PROCESSCARD.btw",
+                        printerName,
+                        csvData
+                    );
+
+                    // 保存文件触发打印
+                    string filename = $"{materialCode}-{operationNo}-{DateTime.Now:yyyyMMddHHmmss}.xml";
+                    return SaveXmlToNetwork(filename, xmlContent);
+                }
+                else if (printerType == PrinterType.LocalPrinter)
+                {
+                    // ZPL 插值
+                    string zpl = $@"^XA
+^CI28
+^MMT
+^PW799
+^LL599
+^LS0
+^LH20,0^FS
+^FO50,50^A0N,35,35^FDOrderNo^FS
+^FO300,50^A0N,35,35^FB200,1,0,L,0^FD{orderNo}^FS
+^FO470,50^BY1.5,2^BCN,40,N,N,N,A^FD{orderNo}^FS
+^FO50,120^A0N,35,35^FDMaterialCode^FS
+^FO300,120^A0N,35,35^FB500,1,0,L,0^FD{materialCode}^FS
+^FO300,165^BY1.5,2^BCN,40,N,N,N,A^FD{materialCodeE}^FS
+^FO50,235^A0N,35,35^FDPrepareWC^FS
+^FO300,235^A0N,35,35,E:SIMSUN.FNT^FD{workCenter}{bagflag}^FS
+^FO50,290^A0N,35,35^FDAssemblyWC^FS
+^FO300,280^A@N,45,40,E:SIMSUN.FNT^FD{nextWorkCenter}({linesidelocation})^FS
+^FO50,350^A0N,35,35^FDProductDate^FS
+^FO300,350^A0N,35,35^FD{dispatchDate}^FS
+^FO50,410^A0N,35,35^FDProductCode^FS
+^FO300,410^A0N,35,35^FD{leadingMaterial}^FS
+^FO50,470^A0N,35,35^FDOrderQty^FS
+^FO300,470^A0N,35,35^FD{Convert.ToInt32(quantity)}^FS
+^FO50,530^A0N,35,35^FDLabelCount^FS
+^FO300,530^A0N,35,35^FD{labelCount}^FS
+^FO520,330^BQN,2,5^FDQA,{orderNo}-{operationNo}^FS
+^FO500,480^A0N,30,30^FD{orderNo}-{operationNo}^FS
+^FO470,570^A0N,50,70^FD BizLink^FS
+^XZ";
+                    return RawPrinterHelper.SendStringToPrinter(printerName, zpl);
+                }
+                return true;
+            }
+            catch (Exception ex)
+            {
+                // 建议集成 ILogger 记录 ex
+                Console.WriteLine($"Print Error: {ex.Message}");
+                return false;
+            }
+        }
+
+
         /// <summary>
+        /// Cutting报工标签打印
+        /// </summary>
+        public static bool CuttingLabelPrinter(string materialCode,string materialDesc,decimal targetQuantity,decimal cuttingLength, string profitCenter,string workOrderNo, string batchCode, string barCode,decimal confirmQuantity, PrinterType printerType, string printerName)
+        {
+            try
+            {
+                string cableLength = (cuttingLength / 1000).ToString("0.000");
+                //string taskBaseNumber = task.TaskNumber.Split('-')[0];
+
+                if (printerType == PrinterType.NetworkPrinter)
+                {
+                    string csvData = $"\"{materialCode}\",\"{materialDesc}\",\"{targetQuantity.ToString("F0")}\",\"PCS {profitCenter}\",\"{batchCode}\",\"{barCode}\",\"{workOrderNo}\",\"\",\"{cableLength}\",\"{Convert.ToInt32(confirmQuantity.ToString("F0"))}\"";
+
+                    string xmlContent = GenerateBartenderXml(
+                        $"{LayoutBasePath}BCN_CN11_CUT.btw",
+                        printerName,
+                        csvData
+                    );
+
+                    string filename = $"{workOrderNo}CUT{DateTime.Now:yyyyMMddHHmmss}.xml";
+                    return SaveXmlToNetwork(filename, xmlContent);
+                }
+                else if (printerType == PrinterType.LocalPrinter)
+                {
+                    string zpl = $@"^XA
+^PW800
+^LL400
+^LH80,50
+^FO0,0^A0N,55,55^FD{materialCode}^FS
+^FO280,0^A0N,55,55^FD{workOrderNo}^FS
+^FO0,65^A0N,30,30^FD{materialDesc}^FS
+^FO0,115^A0N,40,40^FD{batchCode}^FS
+^FO220,115^A0N,40,40^FD{cableLength} M^FS
+^FO0,190^A0N,50,50^FD{confirmQuantity.ToString("F0")} / {targetQuantity.ToString("F0")} PCS{profitCenter}^FS
+^FO480,70^BQN,2,5^FDQA,{barCode}^FS
+^FO480,210^A0N,25,25^FD  {barCode}^FS
+^XZ";
+                    return RawPrinterHelper.SendStringToPrinter(printerName, zpl);
+                }
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Print Error: {ex.Message}");
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// 断线首检标签
+        /// </summary>
+        /// <param name="materialCode"></param>
+        /// <param name="materialDesc"></param>
+        /// <param name="workOrderNo"></param>
+        /// <param name="batchCode"></param>
+        /// <param name="barCode"></param>
+        /// <param name="cuttingLength"></param>
+        /// <param name="minCuttingLength"></param>
+        /// <param name="maxCuttingLength"></param>
+        /// <param name="printerType"></param>
+        /// <param name="printerName"></param>
+        /// <returns></returns>
+        public static bool CuttingInspectLabelPrinter(string materialCode,string materialDesc, string workOrderNo, decimal cuttingLength,decimal minCuttingLength,decimal maxCuttingLength, PrinterType printerType, string printerName)
+        {
+            try
+            {
+
+                if (printerType == PrinterType.NetworkPrinter)
+                {
+                    string csvData = $"\"{materialCode}\",\"{materialDesc}\",\"{maxCuttingLength.ToString("F1")} mm\",\"\",\"\",\"\",\"{workOrderNo}\",\"\",\"{(cuttingLength / 1000).ToString("F3")} \",\"{minCuttingLength.ToString("F1")} mm\"";
+
+                    string xmlContent = GenerateBartenderXml(
+                        $"{LayoutBasePath}BCN_CN11_CUT.btw",
+                        printerName,
+                        csvData
+                    );
+
+                    string filename = $"{workOrderNo}CUT{DateTime.Now:yyyyMMddHHmmss}.xml";
+                    return SaveXmlToNetwork(filename, xmlContent);
+                }
+                else if (printerType == PrinterType.LocalPrinter)
+                {
+                    string zpl = $@"^XA
+^PW800
+^LL400
+^LH80,50
+^FO0,0^A0N,55,55^FD{materialCode}^FS
+^FO280,0^A0N,55,55^FD{workOrderNo}^FS
+^FO0,65^A0N,30,30^FD{materialDesc}^FS
+^FO0,115^A0N,40,40^FD^FS
+^FO220,115^A0N,40,40^FD{(cuttingLength / 1000).ToString("F3")} M^FS
+^ FO0,190^A0N,50,50^FD{minCuttingLength.ToString("F1")} mm / {maxCuttingLength.ToString("F1")} mm^FS
+^FO480,70^BQN,2,5^FDQA,^FS
+^FO480,210^A0N,25,25^FD  ^FS
+^XZ";
+                    return RawPrinterHelper.SendStringToPrinter(printerName, zpl);
+                }
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Print Error: {ex.Message}");
+                return false;
+            }
+        }
+
+
+        public static bool ShipmentLabelPrinter(PrinterType printerType, string printerName, string materialCode, string materialDesc, string batchCode, string locationCode, decimal cuttingLength, string barCode = null)
+        {
+            try
+            {
+                string cutLenStr = cuttingLength.ToString("0.000");
+
+                if (printerType == PrinterType.NetworkPrinter)
+                {
+                    string csvData = $"\"{materialCode}\",\"{materialDesc}\",\"\",\"\",\"{batchCode}\",\"{barCode ?? ""}\",\"\",\"{locationCode}\",\"{cutLenStr}\",\"\"";
+
+                    string xmlContent = GenerateBartenderXml(
+                        $"{LayoutBasePath}BCN_CN11_CUT.btw",
+                        printerName,
+                        csvData
+                    );
+
+                    string filename = $"{batchCode}{DateTime.Now:yyyyMMddHHmmss}.xml";
+                    return SaveXmlToNetwork(filename, xmlContent);
+                }
+                else if (printerType == PrinterType.LocalPrinter)
+                {
+                    string zpl = $@"^XA
+^PW800
+^LL400
+^LH80,50
+^FO0,0^A0N,55,55^FD{materialCode}^FS
+^FO280,0^A0N,55,55^FD{locationCode}^FS
+^FO0,65^A0N,30,30^FD{materialDesc}^FS
+^FO0,115^A0N,40,40^FD{batchCode}^FS
+^FO220,115^A0N,40,40^FD{cutLenStr} M^FS
+^FO0,190^A0N,50,50^FD PCS^FS
+^FO480,70^BQN,2,5^FDQA,{barCode ?? ""}^FS
+^FO480,210^A0N,25,25^FD  {barCode ?? ""}^FS
+^XZ";
+                    return RawPrinterHelper.SendStringToPrinter(printerName, zpl);
+                }
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Print Error: {ex.Message}");
+                return false;
+            }
+        }
+
+        #region Private Helpers
+
+        /// <summary>
+        /// 生成 BarTender 集成 XML (Script 2.0)
+        /// </summary>
+        private static string GenerateBartenderXml(string layoutPath, string targetPrinter, string csvRecordData)
+        {
+            // 使用 StringBuilder 避免大字符串内存分配
+            var sb = new StringBuilder();
+            sb.AppendLine("<?xml version=\"1.0\" encoding=\"utf-8\"?>");
+            sb.AppendLine("<XMLScript Version=\"2.0\">");
+            sb.AppendLine("  <Command Name=\"Report Label\">");
+            sb.AppendLine("    <Print>");
+            sb.AppendLine($"      <Format>{layoutPath}</Format>");
+            sb.AppendLine("      <PrintSetup>");
+            sb.AppendLine($"        <Printer>{targetPrinter}</Printer>");
+            sb.AppendLine("        <IdenticalCopiesOfLabel>1</IdenticalCopiesOfLabel>");
+            sb.AppendLine("      </PrintSetup>");
+            sb.AppendLine("      <RecordSet Type=\"btTextFile\">");
+            sb.AppendLine("        <Delimitation>btDelimQuoteAndComma</Delimitation>");
+            sb.AppendLine("        <UseFieldNamesFromFirstRecord>true</UseFieldNamesFromFirstRecord>");
+            //sb.AppendLine("        <TextData><![CDATA[\"Material\",\"Description\",\"Quantity\",\"Unit\",\"Batch\",\"PackageID\",\"OrderID\",\"RecLoc\",\"Length\",\"ConfQuantity\""); // Header
+            sb.AppendLine("        <TextData><![CDATA[\"Material\",\"Description\",\"Quantity\",\"Unit\",\"Batch\",\"PackageID\",\"OrderID\",\"RecLoc\",\"Length\",\"ConfQuantity\",\"PrepareWC\",\"AssemblyWC\",\"FinishProduct\",\"FinishDate\",\"LabelCount\""); // Header
+            sb.AppendLine(csvRecordData); // Data Row
+            sb.AppendLine("]]></TextData>");
+            sb.AppendLine("      </RecordSet>");
+            sb.AppendLine("    </Print>");
+            sb.AppendLine("  </Command>");
+            sb.AppendLine("</XMLScript>");
+
+            return sb.ToString();
+        }
+
+        /// <summary>
+        /// 将内容保存到网络路径 (BarTender Scan Folder)
+        /// </summary>
+        private static bool SaveXmlToNetwork(string filename, string content)
+        {
+            try
+            {
+                string fullPath = Path.Combine(BartenderScanPath, filename);
+
+                // 优化：File.WriteAllText 自动处理流的打开与关闭
+                File.WriteAllText(fullPath, content, Encoding.UTF8);
+
+                return true;
+            }
+            catch (IOException ioEx)
+            {
+                // 处理文件占用等 IO 异常
+                throw new Exception($"写入网络路径失败: {ioEx.Message}", ioEx);
+            }
+            catch (UnauthorizedAccessException authEx)
+            {
+                // 处理权限异常
+                throw new Exception($"无权访问网络路径: {authEx.Message}", authEx);
+            }
+        }
+
+        #endregion
+
+        /// <summary> 
         /// 将原始的打印命令字符串 (如 ZPL, EPL) 发送到指定的打印机.
+        /// 作废
         /// </summary>
         /// <param name="printerName">目标打印机的完整名称.</param>
         /// <param name="commandString">要发送的原始命令字符串.</param>
@@ -118,7 +408,12 @@ namespace BizLink.MES.Shared.Helpers
 
             return bSuccess;
         }
-
+        /// <summary>
+        ///  作废
+        /// </summary>
+        /// <param name="filename"></param>
+        /// <param name="commandString"></param>
+        /// <returns></returns>
         public static bool SaveXMLToBartenderPath(string filename,string commandString)
         {
             bool bSuccess = false;
@@ -149,6 +444,7 @@ namespace BizLink.MES.Shared.Helpers
 
         /// <summary>
         /// CN11流转卡打印
+        /// 作废
         /// </summary>
         public static bool ProcessCardPrinter(WorkOrderDto order, WorkOrderProcessDto process,string bagflag, string linesidelocation, PrinterType printerType, string printername)
         {
@@ -198,7 +494,16 @@ namespace BizLink.MES.Shared.Helpers
             }
         }
 
-
+        /// <summary>
+        /// 作废
+        /// </summary>
+        /// <param name="task"></param>
+        /// <param name="confirm"></param>
+        /// <param name="profitCenter"></param>
+        /// <param name="batchcode"></param>
+        /// <param name="printerType"></param>
+        /// <param name="printername"></param>
+        /// <returns></returns>
         public static bool CuttingReportPrinter(WorkOrderTaskDto task,WorkOrderTaskConfirmDto confirm,string profitCenter ,string batchcode, PrinterType printerType, string printername)
         {
             var reportStr = string.Empty;
@@ -246,7 +551,18 @@ namespace BizLink.MES.Shared.Helpers
             }
 
         }
-
+        /// <summary>
+        /// 作废
+        /// </summary>
+        /// <param name="printerType"></param>
+        /// <param name="printername"></param>
+        /// <param name="materialCode"></param>
+        /// <param name="materialDesc"></param>
+        /// <param name="batchCode"></param>
+        /// <param name="locationCode"></param>
+        /// <param name="cuttingLength"></param>
+        /// <param name="barCode"></param>
+        /// <returns></returns>
         public static bool ShipmentOfRawMaterialPrinter(PrinterType printerType, string printername,string materialCode,string materialDesc,string batchCode,string locationCode,decimal cuttingLength,string? barCode = null )
         {
             var reportStr = string.Empty;

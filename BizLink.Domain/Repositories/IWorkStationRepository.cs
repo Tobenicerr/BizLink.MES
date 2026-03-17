@@ -23,5 +23,7 @@ namespace BizLink.MES.Domain.Repositories
 
         Task<List<WorkStation>> GetByIdAsync(List<int> id);
 
+        Task<List<WorkStation>> GetListByWorkcenterIdAsync(List<int> workcenterIds);
+
     }
 }

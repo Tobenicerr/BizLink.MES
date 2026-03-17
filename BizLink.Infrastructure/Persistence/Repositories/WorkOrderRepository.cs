@@ -31,12 +31,12 @@ namespace BizLink.MES.Infrastructure.Persistence.Repositories
 
         public async Task<WorkOrder> GetByOrderNoAsync(string orderno)
         {
-            return await _db.Queryable<WorkOrder>().Where(x => x.OrderNumber == orderno && StatusQueryRules.ActiveWorkOrderStatus.Contains(x.Status)).FirstAsync();
+            return await _db.Queryable<WorkOrder>().Where(x => x.OrderNumber == orderno).FirstAsync();
         }
 
         public async Task<List<WorkOrder>> GetByOrderNoAsync(List<string> ordernos)
         {
-            return await _db.Queryable<WorkOrder>().Where(x => ordernos.Contains(x.OrderNumber) && StatusQueryRules.ActiveWorkOrderStatus.Contains(x.Status)).ToListAsync();
+            return await _db.Queryable<WorkOrder>().Where(x => ordernos.Contains(x.OrderNumber)).ToListAsync();
         }
 
         public async Task<(List<WorkOrder>, List<WorkOrderProcess>, List<WorkOrderTask>)> GetCableTaskConfirmListAsync(List<string>? orders, DateTime? starttime, int? workcenterid, int? workstationid)
@@ -174,7 +174,7 @@ namespace BizLink.MES.Infrastructure.Persistence.Repositories
 
         public async Task<List<WorkOrder>> GetByIdAsync(List<int> ids)
         {
-            return await _db.Queryable<WorkOrder>().Where(x => ids.Contains(x.Id) && StatusQueryRules.ActiveWorkOrderStatus.Contains(x.Status)).ToListAsync();
+            return await _db.Queryable<WorkOrder>().Where(x => ids.Contains(x.Id)).ToListAsync();
         }
 
         public Task<bool> UpdateBatchAsync(List<WorkOrder> updateDtos)

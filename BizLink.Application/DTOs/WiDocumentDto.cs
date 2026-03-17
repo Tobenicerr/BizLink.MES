@@ -25,14 +25,20 @@ namespace BizLink.MES.Application.DTOs
         {
             get; set;
         }
-        public string? MaterialCode
+        public string? DocumentNo
         {
             get; set;
         }
-        public string? MaterialDesc
+        public string? ConstructionNo
         {
             get; set;
         }
+
+        public string? ProcessName
+        {
+            get; set;
+        }
+
         public string? DocVersion
         {
             get; set;
@@ -49,6 +55,11 @@ namespace BizLink.MES.Application.DTOs
         {
             get; set;
         }
+        public bool IsActive
+        {
+            get; set;
+        }
+
         public string? Remark
         {
             get; set;
@@ -93,14 +104,20 @@ namespace BizLink.MES.Application.DTOs
         {
             get; set;
         }
-        public string? MaterialCode
+        public string? DocumentNo
         {
             get; set;
         }
-        public string? MaterialDesc
+        public string? ConstructionNo
         {
             get; set;
         }
+
+        public string? ProcessName
+        {
+            get; set;
+        }
+
         public string? DocVersion
         {
             get; set;
@@ -117,11 +134,15 @@ namespace BizLink.MES.Application.DTOs
         {
             get; set;
         }
-        public string? Remark
+        public bool IsActive
         {
             get; set;
         }
 
+        public string? Remark
+        {
+            get; set;
+        }
         public string? CreatedBy
         {
             get; set;
@@ -141,23 +162,16 @@ namespace BizLink.MES.Application.DTOs
         {
             get; set;
         }
-        public int? FactoryId
+        public string? DocumentNo
         {
             get; set;
         }
 
-        public string? FactoryCode
+        public string? ProcessName
         {
             get; set;
         }
-        public string? MaterialCode
-        {
-            get; set;
-        }
-        public string? MaterialDesc
-        {
-            get; set;
-        }
+
         public string? DocVersion
         {
             get; set;
@@ -174,6 +188,11 @@ namespace BizLink.MES.Application.DTOs
         {
             get; set;
         }
+        public bool IsActive
+        {
+            get; set;
+        }
+
         public string? Remark
         {
             get; set;

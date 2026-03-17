@@ -19,6 +19,8 @@ namespace BizLink.MES.Domain.Repositories
         Task<(IEnumerable<User> Users, int TotalCount)> GetPagedListAsync(int pageIndex, int pageSize, string keyword, bool? isActive);
 
         Task<List<User>> GetByEmployeeIdAsync(List<string> EmployeeIds);
+
+        Task<List<User>> GetListByFactoryIdAsync(int factoryId);
     }
 
 

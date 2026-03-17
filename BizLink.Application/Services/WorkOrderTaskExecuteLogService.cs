@@ -37,19 +37,27 @@ namespace BizLink.MES.Application.Services
             return await _workOrderTaskExecuteLogRepository.DeleteAsync(id);
         }
 
-        public Task<IEnumerable<WorkOrderTaskExecuteLogDto>> GetAllAsync()
+        public async Task<IEnumerable<WorkOrderTaskExecuteLogDto>> GetAllAsync()
         {
-            throw new NotImplementedException();
+            var entities = await _workOrderTaskExecuteLogRepository.GetAllAsync();
+            return _mapper.Map<List<WorkOrderTaskExecuteLogDto>>(entities);
         }
 
-        public Task<WorkOrderTaskExecuteLogDto> GetByIdAsync(int id)
+        public async Task<WorkOrderTaskExecuteLogDto> GetByIdAsync(int id)
         {
-            throw new NotImplementedException();
+            var entity = await _workOrderTaskExecuteLogRepository.GetByIdAsync(id);
+            return _mapper.Map<WorkOrderTaskExecuteLogDto>(entity);
         }
 
         public Task<bool> UpdateAsync(WorkOrderTaskExecuteLogUpdateDto updateDto)
         {
             throw new NotImplementedException();
+        }
+
+        public async Task<List<WorkOrderTaskExecuteLogDto>> GetListByTaskIdAsync(int taskId, string TaskLevel) 
+        {
+            var entities = await _workOrderTaskExecuteLogRepository.GetListByTaskIdAsync(taskId, TaskLevel);
+            return _mapper.Map<List<WorkOrderTaskExecuteLogDto>>(entities);
         }
     }
 }

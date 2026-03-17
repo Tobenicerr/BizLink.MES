@@ -39,6 +39,15 @@ namespace BizLink.MES.Application.DTOs
             get; set;
         }
 
+        public int? WorkCenterId
+        {
+            get; set;
+        }
+
+        public string? WorkCenterCode
+        {
+            get; set;
+        }
 
         public string? GroupType
         {

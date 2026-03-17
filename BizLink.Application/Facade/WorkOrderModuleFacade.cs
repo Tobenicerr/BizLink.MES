@@ -162,7 +162,10 @@ namespace BizLink.MES.Application.Facade
             var update = validBoms.Select(x => new WorkOrderBomItemUpdateDto
             {
                 Id = x.Id,
-                SyncWMSStatus = x.SyncWMSStatus + 1
+                SyncWMSStatus = x.SyncWMSStatus + 1,
+                UpdateBy = user.EmployeeId,
+                UpdateOn = DateTime.Now,
+
             }).ToList();
 
             await WorkOrderBomItemService.UpdateWmsStatusAsync(update);

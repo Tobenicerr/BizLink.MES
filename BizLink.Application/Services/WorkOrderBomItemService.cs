@@ -41,9 +41,10 @@ namespace BizLink.MES.Application.Services
             throw new NotImplementedException();
         }
 
-        public Task<WorkOrderBomItemDto> GetByIdAsync(int id)
+        public async Task<WorkOrderBomItemDto> GetByIdAsync(int id)
         {
-            throw new NotImplementedException();
+            var entity = await _workOrderBomItemRepository.GetByIdAsync(id);
+            return _mapper.Map<WorkOrderBomItemDto>(entity);
         }
 
         public async Task<List<WorkOrderBomItemDto>> GetListByOrderIdAync(int orderid)
@@ -133,6 +134,12 @@ namespace BizLink.MES.Application.Services
 
             }
             return await _workOrderBomItemRepository.UpdateBatchAsync(entityList);
+        }
+
+        public async Task<List<WorkOrderBomItemDto>> GetByIdAsync(List<int> ids)
+        {
+            var entities = await _workOrderBomItemRepository.GetByIdsAsync(ids);
+            return _mapper.Map<List<WorkOrderBomItemDto>>(entities);
         }
     }
 }

@@ -167,7 +167,6 @@ namespace BizLink.MES.Application.Services
                 throw new Exception("未查询到待重传记录中的工厂信息，无法重传！");
             }
             var locationGroup = await _parameterGroupService.GetGroupWithItemsAsync("CN11SAPStockLocation");
-            //string tolocation = locationGroup?.Items.FirstOrDefault(x => x.Key == "SAPLineStock")?.Value ?? "2100";
             string cableLineLocation = locationGroup?.Items.FirstOrDefault(x => x.Key == "CableRawLineStock")?.Value ?? "2200";
 
             #region 废弃：不通过SAP库存去补足批次

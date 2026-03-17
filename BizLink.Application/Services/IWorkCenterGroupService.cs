@@ -11,5 +11,9 @@ namespace BizLink.MES.Application.Services
     public interface IWorkCenterGroupService : IGenericService<WorkCenterGroupDto, WorkCenterGroupCreateDto, WorkCenterGroupUpdateDto>
     {
         Task<List<WorkCenterGroupDto>> GetListByGroupTypeAsync(int factoryid,string grouptype);
+
+        Task<WorkCenterGroupDto> GetByWorkCenterCodeAsync(string workcenterCode);
+
+        Task<List<WorkCenterGroupDto>> GetByWorkCenterCodeAsync(List<string> workcenterCode);
     }
 }

@@ -70,7 +70,7 @@
             // SearchButton
             // 
             SearchButton.Font = new Font("Microsoft YaHei UI", 11F);
-            SearchButton.Location = new Point(169, -1);
+            SearchButton.Location = new Point(163, -2);
             SearchButton.Name = "SearchButton";
             SearchButton.Size = new Size(75, 42);
             SearchButton.TabIndex = 1;

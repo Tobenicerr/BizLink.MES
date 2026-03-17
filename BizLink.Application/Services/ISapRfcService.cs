@@ -26,10 +26,18 @@ namespace BizLink.MES.Application.Services
 
         Task<WorkOrderOperationConfirmDto> ConfirmOrderCompletionToSAPAsync(int sapconfirmid);
 
+        Task<List<WorkOrderOperationConfirmDto>> ConfirmBatchOrderCompletionToSAPAsync(List<int> sapconfirmids);
+
+        Task<List<WorkOrderOperationConfirmDto>> CancelBatchConfirmToSAPAsync(List<int> sapconfirmids);
+
         Task<bool> SyncMaterialFromSAPAsync(string factoryCode, List<string>? materialCodes, DateTime? startTime, DateTime? endTime);
 
         Task<List<SapRawMaterialStockDto>> GetRawMaterialStockFromSapAsync(List<SapRawMaterialStockDto> materialCodes);
 
         Task<List<MaterialTransferLogDto>> RawMaterialInventoryAdjustmentAsync(List<MaterialTransferLogDto> input);
+
+        Task<FinishedGoodsReceiptDto> FinishedGoodsReceiptToSapAsync(FinishedGoodsReceiptDto dto);
+
+        Task<SapLabelDataComponentDto> GetSapLabelDataByMaterialCodeAsync(string factoryCode, string materialCode);
     }
 }

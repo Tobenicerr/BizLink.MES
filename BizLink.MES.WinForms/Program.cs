@@ -5,6 +5,7 @@ using BizLink.MES.Application.Mappings;
 using BizLink.MES.Application.Services;
 using BizLink.MES.Domain.Common;
 using BizLink.MES.Domain.Repositories;
+using BizLink.MES.Infrastructure.Extensions;
 using BizLink.MES.Infrastructure.Persistence.DbContext;
 using BizLink.MES.Infrastructure.Persistence.Repositories;
 using BizLink.MES.Shared.Extensions;
@@ -74,8 +75,8 @@ namespace BizLink.MES.WinForms
             Host.CreateDefaultBuilder().ConfigureAppConfiguration((hostingContext, config) =>
             {
                 #if DEBUG
-                //config.AddJsonFile("appsettings.json", optional: false, reloadOnChange: true);
                 config.AddJsonFile("appsettings.json", optional: false, reloadOnChange: true);
+                //config.AddJsonFile("appsettings.Development.json", optional: false, reloadOnChange: true);
                 #else
                 config.AddJsonFile("appsettings.json", optional: false, reloadOnChange: true);
 
@@ -87,8 +88,13 @@ namespace BizLink.MES.WinForms
                 // --- 1. 核心基础设施 ---
 
                 // 注册 SqlSugar & UnitOfWork
-                services.AddSingleton<IDbClientFactory, DbClientFactory>();
-                services.AddTransient<IUnitOfWork, UnitOfWork>();
+                //services.AddSingleton<IDbClientFactory, DbClientFactory>();
+                //services.AddTransient<IUnitOfWork, UnitOfWork>();
+
+
+                // ★ 2. 使用扩展方法注册 SqlSugar 和 UnitOfWork
+                // 这行代码会自动读取 appsettings.json 中的 "Connections" 节点并注册所有数据库
+                services.AddSqlSugarSetup(context.Configuration);
 
                 // 注册 HttpClient
                 services.Configure<Dictionary<string, ServiceEndpointSettings>>(context.Configuration.GetSection("ApiSettings"));
@@ -104,6 +110,17 @@ namespace BizLink.MES.WinForms
                     var apiSettings = serviceProvider.GetRequiredService<IOptions<Dictionary<string, ServiceEndpointSettings>>>().Value;
                     client.BaseAddress = new Uri(apiSettings["JyApi"].BaseUrl);
                     client.DefaultRequestHeaders.Add("Accept", "application/json");
+                });
+
+                services.AddHttpClient<IBartApiClient, ApiClient>((serviceProvider, client) =>
+                {
+                    var apiSettings = serviceProvider.GetRequiredService<IOptions<Dictionary<string, ServiceEndpointSettings>>>().Value;
+                    client.BaseAddress = new Uri(apiSettings["BartenderApi"].BaseUrl);
+                    client.DefaultRequestHeaders.Add("Accept", "application/json");
+                }).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler 
+                {
+                    // 关键设置：启用当前 Windows 用户的凭据
+                    UseDefaultCredentials = true,
                 });
 
                 // --- 2. WinForms 特有服务 ---

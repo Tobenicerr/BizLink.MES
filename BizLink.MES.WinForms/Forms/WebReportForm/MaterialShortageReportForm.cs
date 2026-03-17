@@ -1,6 +1,7 @@
 ﻿using AntdUI;
 using BizLink.MES.Application.DTOs;
 using BizLink.MES.Application.Services;
+using BizLink.MES.Domain.Enums;
 using BizLink.MES.WinForms.Common;
 using BizLink.MES.WinForms.Common.Helper;
 using SqlSugar;
@@ -21,13 +22,15 @@ namespace BizLink.MES.WinForms.Forms.WebReportForm
         private readonly ICenterStockOutService _centerStockOutService;
         private readonly IAutoStockOutService _autoStockOutService;
         private readonly IWorkOrderService _workOrderService;
-        public MaterialShortageReportForm(ICenterStockOutService centerStockOutService, IAutoStockOutService autoStockOutService, IWorkOrderService workOrderService)
+        private readonly IWorkOrderProcessService _workOrderProcessService;
+        public MaterialShortageReportForm(ICenterStockOutService centerStockOutService, IAutoStockOutService autoStockOutService, IWorkOrderService workOrderService, IWorkOrderProcessService workOrderProcessService)
         {
             InitializeComponent();
             InitializeTable();
             _centerStockOutService = centerStockOutService;
             _autoStockOutService = autoStockOutService;
             _workOrderService = workOrderService;
+            _workOrderProcessService = workOrderProcessService;
         }
 
         private void MaterialShortageReportForm_Load(object sender, EventArgs e)
@@ -150,6 +153,13 @@ namespace BizLink.MES.WinForms.Forms.WebReportForm
 
             // 6. 批量获取工单详情
             // 此时 distinctWorkOrderNos 已经是经过关键字过滤后的子集，数量最少
+
+            var processDtos = await _workOrderProcessService.GetListByOrderNos(distinctWorkOrderNos);
+            if (processDtos != null && processDtos.Count() > 0) 
+            {
+                var minIds = processDtos.GroupBy(x => x.WorkOrderId).Select(x => x.Min(x => x.Id)).ToList();
+                distinctWorkOrderNos = processDtos.Where(x => minIds.Contains(x.Id)).Select(x => x.WorkOrderNo).ToList();
+            }
             var workOrderDtos = await _workOrderService.GetByOrdrNoAsync(distinctWorkOrderNos);
 
             // 7. 组装 ViewModel (内存 Join)

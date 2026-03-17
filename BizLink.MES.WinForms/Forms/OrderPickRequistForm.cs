@@ -31,8 +31,8 @@ namespace BizLink.MES.WinForms.Forms
         private readonly IWorkOrderService _workOrderService;
         private readonly IWorkOrderBomItemService _workOrderBomItemService;
         private readonly IWorkOrderProcessService _workOrderProcessService;
-        private readonly IProductLinesideStockService _productLinesideStockService;
-        private readonly IWorkOrderTaskService _workOrderTaskService;
+        //private readonly IProductLinesideStockService _productLinesideStockService;
+        private readonly IWorkOrderMaterialTaskService _workOrderTaskService;
         private readonly IMaterialViewService _materialViewService;
         private readonly IMesApiClient _mesApiClient;
         private readonly IJyApiClient _jyApiClient;
@@ -41,16 +41,20 @@ namespace BizLink.MES.WinForms.Forms
         private readonly IAutoStockOutService _autoStockOutService;
         private readonly ICenterStockOutService _centerStockOutService;
 
+        private readonly ITaskExecutionService _taskExecutionService;
+        private readonly IWmsWorkOrderPickingLogService _pickingLogService;
+        private readonly IWorkOrderStepTaskService _stepTaskService;
 
 
-        public OrderPickRequistForm(IWorkOrderService workOrderService, IWorkOrderBomItemService workOrderBomItemService, IWorkOrderProcessService workOrderProcessService, IProductLinesideStockService productLinesideStockService, IWorkOrderTaskService workOrderTaskService, IMaterialViewService materialViewService, IMesApiClient mesApiClient, IJyApiClient jyApiClient, IOptions<Dictionary<string, ServiceEndpointSettings>> apiSettings, IWorkOrderViewService workOrderViewService, IAutoStockOutService autoStockOutService, ICenterStockOutService centerStockOutService)
+
+        public OrderPickRequistForm(IWorkOrderService workOrderService, IWorkOrderBomItemService workOrderBomItemService, IWorkOrderProcessService workOrderProcessService, IProductLinesideStockService productLinesideStockService, IWorkOrderMaterialTaskService workOrderTaskService, IMaterialViewService materialViewService, IMesApiClient mesApiClient, IJyApiClient jyApiClient, IOptions<Dictionary<string, ServiceEndpointSettings>> apiSettings, IWorkOrderViewService workOrderViewService, IAutoStockOutService autoStockOutService, ICenterStockOutService centerStockOutService, ITaskExecutionService taskExecutionService, IWmsWorkOrderPickingLogService pickingLogService, IWorkOrderStepTaskService stepTaskService)
         {
             InitializeComponent();
             InitializeTable();
             _workOrderService = workOrderService;
             _workOrderBomItemService = workOrderBomItemService;
             _workOrderProcessService = workOrderProcessService;
-            _productLinesideStockService = productLinesideStockService;
+            _stepTaskService = stepTaskService;
             _workOrderTaskService = workOrderTaskService;
             _materialViewService = materialViewService;
             _mesApiClient = mesApiClient;
@@ -59,6 +63,8 @@ namespace BizLink.MES.WinForms.Forms
             _workOrderViewService = workOrderViewService;
             _autoStockOutService = autoStockOutService;
             _centerStockOutService = centerStockOutService;
+            _taskExecutionService = taskExecutionService;
+            _pickingLogService = pickingLogService;
         }
 
         private void InitializeTable()
@@ -286,30 +292,31 @@ namespace BizLink.MES.WinForms.Forms
 
                     var allProcesses = await _workOrderProcessService.GetListByOrderIdsAync(orderIds);
                     var allBoms = await _workOrderBomItemService.GetListByOrderIdsAync(orderIds);
-                    var allStocks = await _productLinesideStockService.GetListByOrderNoAsync(orderNos);
-                    var allTasks = await _workOrderTaskService.GetListByOrderIdsAsync(orderIds);
+                    var allStocks = await _pickingLogService.GetListByWorkOrdersAsync(orderNos);
+                    var allTasks = await _workOrderTaskService.GetCuttingViewByProcessIdAsync(allBoms.Select(x => x.WorkOrderProcessId).ToList());
+                    var allKittingTasks = await _stepTaskService.GetListByWorkOrderProcessIdAsync(allBoms.Select(x => x.WorkOrderProcessId).ToList(), TaskCategories.Kitting);
 
-
-                    var allCenterStocks = await _centerStockOutService.GetListByWorkOrderAsync(orderNos);
-
+                    var allCenterStocks = (await _centerStockOutService.GetAllAsync()).Where(c => orderNos.Contains(c.WorkOrderNo));
                     var allAutoStocks = await _autoStockOutService.GetAllAsync();
 
                     // 3. 批量获取物料信息
                     var materialCodes = allBoms.Select(b => b.MaterialCode).Distinct().ToList();
-                    var allMaterials = await _materialViewService.GetListByCodesAsync(AppSession.CurrentUser.FactoryName, materialCodes); // 假设已存在
-                    var materialDict = allMaterials.ToDictionary(m => m.MaterialCode, m => m.LabelName);
-
+                    var allMaterials = await _materialViewService.GetListByCodesAsync(AppSession.CurrentUser.FactoryName, materialCodes);
+                    var materialDict = allMaterials.GroupBy(m => m.MaterialCode).ToDictionary(g => g.Key, g => g.First().LabelName);
                     // 4. 构建内存查找表 (Lookups)
                     var processLookup = allProcesses.ToLookup(p => p.WorkOrderId);
                     var bomLookup = allBoms.ToLookup(b => b.WorkOrderId);
                     var stockLookup = allStocks.ToLookup(s => s.WorkOrderNo); // 假设通过 WorkOrderNo 关联
+                    var kittingLookup = allKittingTasks.ToLookup(a => a.WorkOrderProcessId);
+
+
                     var autoStockLookup = allAutoStocks.ToLookup(a => a.WorkOrderNo);
 
                     var centerStockLookup = allCenterStocks.ToLookup(a => a.WorkOrderNo);
 
                     // 假设 Task 也有 WorkOrderId 或关联到 ProcessId
                     // 这里假设通过 OrderProcessId 关联，我们需要先建立 ProcessId -> Task 的映射
-                    var taskLookup = allTasks.ToLookup(t => t.OrderProcessId);
+                    var taskLookup = allTasks.ToLookup(t => t.RefSourceId);
 
                     var orderpickviews = new List<OrderPickRequistView>();
 
@@ -318,10 +325,10 @@ namespace BizLink.MES.WinForms.Forms
                     {
                         var view = new OrderPickRequistView(orderDto);
                         var orderBoms = bomLookup[orderDto.Id].ToList();
-                        var orderStocks = stockLookup[orderDto.OrderNumber].Select(x => new ProductLinesideStockDto
+                        var orderStocks = stockLookup[orderDto.OrderNumber].Select(x => new WmsWorkOrderPickingLogDto
                         {
                             MaterialCode = x.MaterialCode,
-                            Quantity = x.Quantity // 复制一份以防修改影响源数据
+                            Quantity = x.Quantity, // 复制一份以防修改影响源数据
                         }).ToList();
 
                         var orderAutoStock = autoStockLookup[orderDto.OrderNumber].ToList();
@@ -329,8 +336,8 @@ namespace BizLink.MES.WinForms.Forms
 
                         // --- 计算 OP 状态 ---
                         var firstProcess = processLookup[orderDto.Id].OrderBy(p => p.Operation).FirstOrDefault();
-                        bool isOpFinished = firstProcess != null && firstProcess.Status == ((int)WorkOrderStatus.Finished).ToString();
-
+                        //bool isOpFinished = firstProcess != null && firstProcess.Status == ((int)WorkOrderStatus.Finished).ToString();
+                        bool isOpFinished = kittingLookup[firstProcess.Id].Where(k => k.Status != WorkTaskStatus.Completed).Count() == 0;
                         if (isOpFinished)
                         {
                             view.IsPicked = "已完成";
@@ -358,7 +365,7 @@ namespace BizLink.MES.WinForms.Forms
                             // 汇总状态
                             if (!validBoms.Any(x => x.SyncWMSStatus > 0) && view.SyncWms != "已领料" && !details.Any(x => x.IsPicked == "已完成"))
                             {
-                                view.IsPicked = "未开始";
+                                view.IsPicked = "执行中";
                             }
                             else
                             {
@@ -405,8 +412,8 @@ namespace BizLink.MES.WinForms.Forms
             List<WorkOrderBomItemDto> boms,
             List<AutoStockOutDto>? autoStocks,
             List<CenterStockOutDto>? centerStocks,
-            List<ProductLinesideStockDto> stocks,
-            ILookup<int, WorkOrderTaskDto> taskLookup, // 假设 key 是 ProcessId
+            List<WmsWorkOrderPickingLogDto> stocks,
+            ILookup<int?, WorkOrderMaterialTaskDto> taskLookup, // 假设 key 是 ProcessId
             Dictionary<string, string> materialLabels)
         {
             var details = boms.Select(x => new OrderPickDetailView(x)).ToList();
@@ -424,12 +431,12 @@ namespace BizLink.MES.WinForms.Forms
                     // 从内存查找 Task
                     // 注意：原代码是 GetByProcessIdAsync(item.WorkOrderProcessId, item.BomItem)
                     // 这里假设 Task 列表中能找到匹配的
-                    var task = taskLookup[item.WorkOrderProcessId].FirstOrDefault(t => t.MaterialItem == item.BomItem); // 假设 MaterialItem 对应 BomItem
+                    var task = taskLookup[item.Id].FirstOrDefault(); // 假设 MaterialItem 对应 BomItem
                     if (task != null)
                     {
-                        item.RequireQuantity = (decimal)task.Quantity;
-                        item.CompleteQuantity = (decimal)task.CompletedQty;
-                        if (task.Status == ((int)WorkOrderStatus.Paused).ToString())
+                        item.RequireQuantity = (decimal)task.TargetQuantity;
+                        item.CompleteQuantity = (decimal)(task.CompletedQuantity??0);
+                        if (!string.IsNullOrEmpty(task.Status) && task.Status == WorkTaskStatus.Suspended)
                             isClosed = true;
                     }
                     item.SyncWms = "已领料";
@@ -470,7 +477,10 @@ namespace BizLink.MES.WinForms.Forms
                         item.IsPicked = "已挂起";
                     else
                     {
-                        item.IsPicked = "执行中";
+                        if(item.CompleteQuantity > 0) 
+                            item.IsPicked = "执行中";
+                        else
+                            item.IsPicked = "未开始";
                         if (autoStocks.Where(x => x.MaterialCode == item.MaterialCode && x.Status == "-1").Count() > 0 || centerStocks.Where(x => x.MaterialCode == item.MaterialCode && x.Status == "-1").Count() > 0)
                             item.IsPicked = "缺料中";
                         if (centerStocks.Where(x => x.MaterialCode == item.MaterialCode && x.Status == "2").Count() > 0)
@@ -501,77 +511,77 @@ namespace BizLink.MES.WinForms.Forms
             return RequistStatus.No.GetDescription();
         }
 
-        private async Task<List<OrderPickDetailView>> LoadDetailData(int orderid)
-        {
-            try
-            {
-                var workorder = await _workOrderService.GetByIdAsync(orderid);
-                if (workorder == null)
-                {
-                    throw new Exception("未找到对应的订单信息");
-                }
-                var boms = (await _workOrderBomItemService.GetListByOrderIdAync(orderid)).Where(x => x.RequiredQuantity > 0 && x.MovementAllowed == true).Where(x => x.ConsumeType == (int)ConsumeType.CableMaterial || x.ConsumeType == (int)ConsumeType.OrderBasedMaterial).Select(x => new OrderPickDetailView(x)).ToList();
-                var products = await _productLinesideStockService.GetListByOrderNoAsync(workorder.OrderNumber);
+        //private async Task<List<OrderPickDetailView>> LoadDetailData(int orderid)
+        //{
+        //    try
+        //    {
+        //        var workorder = await _workOrderService.GetByIdAsync(orderid);
+        //        if (workorder == null)
+        //        {
+        //            throw new Exception("未找到对应的订单信息");
+        //        }
+        //        var boms = (await _workOrderBomItemService.GetListByOrderIdAync(orderid)).Where(x => x.RequiredQuantity > 0 && x.MovementAllowed == true).Where(x => x.ConsumeType == (int)ConsumeType.CableMaterial || x.ConsumeType == (int)ConsumeType.OrderBasedMaterial).Select(x => new OrderPickDetailView(x)).ToList();
+        //        var products = await _pickingLogService.GetListByWorkOrdersAsync(workorder.OrderNumber);
 
-                foreach (var item in boms)
-                {
-                    var material = await _materialViewService.GetByCodeAsync(AppSession.CurrentUser.FactoryName, item.MaterialCode);
-                    item.ConsumeTypeDesc = material.LabelName;
+        //        foreach (var item in boms)
+        //        {
+        //            var material = await _materialViewService.GetByCodeAsync(AppSession.CurrentUser.FactoryName, item.MaterialCode);
+        //            item.ConsumeTypeDesc = material.LabelName;
 
-                    if (item.ConsumeType == (int)ConsumeType.CableMaterial)
-                    {
-                        var task = await _workOrderTaskService.GetByProcessIdAsync(item.WorkOrderProcessId, item.BomItem);
-                        if (task != null)
-                        {
-                            item.RequireQuantity = (decimal)task.Quantity;
-                            item.CompleteQuantity = (decimal)task.CompletedQty;
-                        }
+        //            if (item.ConsumeType == (int)ConsumeType.CableMaterial)
+        //            {
+        //                var task = await _workOrderTaskService.GetCuttingViewByBomIdAsync(item.Id);
+        //                if (task != null)
+        //                {
+        //                    item.RequireQuantity = (decimal)task.TargetQuantity;
+        //                    item.CompleteQuantity = (decimal)task.CompletedQuantity;
+        //                }
 
-                        item.SyncWms = "已领料";
-                    }
-                    else if (item.ConsumeType == (int)ConsumeType.OrderBasedMaterial)
-                    {
-                        foreach (var stock in products.Where(x => x.MaterialCode == item.MaterialCode))
-                        {
-                            if (item.RequireQuantity > item.CompleteQuantity)
-                            {
-                                if (item.RequireQuantity > stock.Quantity)
-                                {
-                                    item.CompleteQuantity += (decimal)stock.Quantity;
-                                    stock.Quantity = 0;
-                                    continue;
-                                }
-                                else
-                                {
-                                    item.CompleteQuantity += item.RequireQuantity;
-                                    stock.Quantity -= item.RequireQuantity;
-                                    break;
-                                }
-                            }
-                            else
-                                break;
-                        }
+        //                item.SyncWms = "已领料";
+        //            }
+        //            else if (item.ConsumeType == (int)ConsumeType.OrderBasedMaterial)
+        //            {
+        //                foreach (var stock in products.Where(x => x.MaterialCode == item.MaterialCode))
+        //                {
+        //                    if (item.RequireQuantity > item.CompleteQuantity)
+        //                    {
+        //                        if (item.RequireQuantity > stock.Quantity)
+        //                        {
+        //                            item.CompleteQuantity += (decimal)stock.Quantity;
+        //                            stock.Quantity = 0;
+        //                            continue;
+        //                        }
+        //                        else
+        //                        {
+        //                            item.CompleteQuantity += item.RequireQuantity;
+        //                            stock.Quantity -= item.RequireQuantity;
+        //                            break;
+        //                        }
+        //                    }
+        //                    else
+        //                        break;
+        //                }
 
-                    }
+        //            }
 
-                    if (item.CompleteQuantity >= item.RequireQuantity)
-                    {
-                        item.IsPicked = "已完成";
-                    }
-                    else
-                    {
-                        item.IsPicked = "执行中";
-                    }
-                }
-                return boms.OrderBy(x => x.ConsumeTypeDesc).ToList();
-            }
-            catch (Exception)
-            {
+        //            if (item.CompleteQuantity >= item.RequireQuantity)
+        //            {
+        //                item.IsPicked = "已完成";
+        //            }
+        //            else
+        //            {
+        //                item.IsPicked = "执行中";
+        //            }
+        //        }
+        //        return boms.OrderBy(x => x.ConsumeTypeDesc).ToList();
+        //    }
+        //    catch (Exception)
+        //    {
 
-                throw;
-            }
+        //        throw;
+        //    }
 
-        }
+        //}
 
         public async Task<string> GetRequistStatus(int orderid)
         {
@@ -667,7 +677,8 @@ namespace BizLink.MES.WinForms.Forms
                 int i = 0;
                 var requestUrl = _apiSettings["JyApi"].Endpoints["TransvouchCreate"];
                 StringBuilder message = new StringBuilder();
-
+                // 【优化】收集所有推送成功需要更新的 BOM，最后进行一次批量持久化
+                var bomsToUpdateBatch = new List<WorkOrderBomItemUpdateDto>();
                 foreach (var orderView in data)
                 {
                     var bom = bomLookup[orderView.Id].Where(x => x.RequiredQuantity > 0 && x.MovementAllowed == true).ToList();
@@ -711,12 +722,21 @@ namespace BizLink.MES.WinForms.Forms
                             message.AppendLine($"{orderView.OrderNumber}推送失败：{result.Message}");
                         else
                         {
-                            // 批量更新当前订单的 BOM 状态
-                            var update = bomtemp.Select(x => new WorkOrderBomItemUpdateDto { Id = x.Id, SyncWMSStatus = x.SyncWMSStatus + 1 }).ToList();
-                            await _workOrderBomItemService.UpdateWmsStatusAsync(update);
+                            // 收集成功的记录，准备统一批量更新数据库
+                            bomsToUpdateBatch.AddRange(bomtemp.Select(x => new WorkOrderBomItemUpdateDto
+                            {
+                                Id = x.Id,
+                                SyncWMSStatus = x.SyncWMSStatus + 1
+                            }));
                         }
                     }
                     requistProgress.Value = (float)++i / data.Count;
+                }
+
+                // 批量持久化，消灭 N+1 数据库访问
+                if (bomsToUpdateBatch.Any())
+                {
+                    await _workOrderBomItemService.UpdateWmsStatusAsync(bomsToUpdateBatch);
                 }
 
                 if (message.Length > 0)
@@ -746,7 +766,7 @@ namespace BizLink.MES.WinForms.Forms
 
         private async void packButton_Click(object sender, EventArgs e)
         {
-            StringBuilder message = new StringBuilder();
+            //StringBuilder message = new StringBuilder();
             try
             {
                 if (orderTable.DataSource == null)
@@ -767,62 +787,69 @@ namespace BizLink.MES.WinForms.Forms
 
                     //再从wms同步一次库存
 
-                    var workorders = string.Join(",", data.Select(x => x.OrderNumber)).TrimEnd(',');
-                    var rtn = await _workOrderViewService.GetPickMtrStockByWorkOrderAsync(workorders);
+                    //var workorders = string.Join(",", data.Select(x => x.OrderNumber)).TrimEnd(',');
+                    //var rtn = await _workOrderViewService.GetPickMtrStockByWorkOrderAsync(workorders);
 
-                    var requestUrl = _apiSettings["MesApi"].Endpoints["WorkOrderPickVerfCommit"];
+                    //var requestUrl = _apiSettings["MesApi"].Endpoints["WorkOrderPickVerfCommit"];
                     requistProgress.Value = 0;
                     int i = 0;
                     foreach (var item in data)
                     {
-                        var process = (await _workOrderProcessService.GetListByOrderIdAync(item.Id)).OrderBy(x => x.Operation).First();
-                        if (process.Status == ((int)WorkOrderStatus.Finished).ToString())
-                        {
-                            requistProgress.Value = (float)++i / data.Count();
-                            continue;
-                        }
-                        else
-                        {
-                            var request = new
-                            {
-                                WorkOrderId = item.Id,
-                                Status = "verfSuccess",
-                                updateBy = AppSession.CurrentUser.EmployeeId,
-                                updateOn = DateTime.Now,
-                            };
-                            var json = JsonConvert.SerializeObject(request);
-                            var result = await _mesApiClient.PutAsync<object, object>(requestUrl, request);
-                            if (!result.IsSuccess)
-                                message.AppendLine($"{item.OrderNumber}合箱失败：" + result.Message);
-                            else
-                            {
-                                item.IsPicked = "已完成";
-                                item.CompleteQuantity = item.RequireQuantity;
-                            }
-                            requistProgress.Value = (float)++i / data.Count();
-                        }
+                        //var process = (await _workOrderProcessService.GetListByOrderIdAync(item.Id)).OrderBy(x => x.Operation).First();
+                        //if (process.Status == ((int)WorkOrderStatus.Finished).ToString())
+                        //{
+                        //    requistProgress.Value = (float)++i / data.Count();
+                        //    continue;
+                        //}
+                        //else
+                        //{
+                        //    var request = new
+                        //    {
+                        //        WorkOrderId = item.Id,
+                        //        Status = "verfSuccess",
+                        //        updateBy = AppSession.CurrentUser.EmployeeId,
+                        //        updateOn = DateTime.Now,
+                        //    };
+                        //    var json = JsonConvert.SerializeObject(request);
+                        //    var result = await _mesApiClient.PutAsync<object, object>(requestUrl, request);
+                        //    if (!result.IsSuccess)
+                        //        message.AppendLine($"{item.OrderNumber}合箱失败：" + result.Message);
+                        //    else
+                        //    {
+                        //        item.IsPicked = "已完成";
+                        //        item.CompleteQuantity = item.RequireQuantity;
+                        //    }
+                        //    requistProgress.Value = (float)++i / data.Count();
+                        //}
+
+                        await _taskExecutionService.ConfirmKittingAsync(item.Id, employeeId: AppSession.CurrentUser.EmployeeId);
+                        item.IsPicked = "已完成";
+                        requistProgress.Value = (float)++i / data.Count();
                     }
 
-                    if (message.Length > 0)
-                    {
-                        AntdUI.Modal.open(new AntdUI.Modal.Config(this.ParentForm, "提示", new AntdUI.Input()
-                        {
-                            Text = message.ToString(),
-                            Width = 350,
-                            Height = 300,
-                            BorderWidth = 0,
-                            Dock = DockStyle.Bottom,
-                            Multiline = true,
-                        }, AntdUI.TType.Warn)
-                        {
-                            CancelText = null
-                        });
+                    //if (message.Length > 0)
+                    //{
+                    //    AntdUI.Modal.open(new AntdUI.Modal.Config(this.ParentForm, "提示", new AntdUI.Input()
+                    //    {
+                    //        Text = message.ToString(),
+                    //        Width = 350,
+                    //        Height = 300,
+                    //        BorderWidth = 0,
+                    //        Dock = DockStyle.Bottom,
+                    //        Multiline = true,
+                    //    }, AntdUI.TType.Warn)
+                    //    {
+                    //        CancelText = null
+                    //    });
 
-                    }
-                    else
-                    {
-                        AntdUI.Message.success(this.ParentForm, "合箱操作完成！");
-                    }
+                    //}
+                    //else
+                    //{
+                    //    AntdUI.Message.success(this.ParentForm, "合箱操作完成！");
+                    //}
+
+                    AntdUI.Message.success(this.ParentForm, "合箱操作完成！");
+
                 }
 
 
@@ -1094,7 +1121,8 @@ namespace BizLink.MES.WinForms.Forms
     {
         public OrderPickDetailView(WorkOrderBomItemDto dto)
         {
-            _workOrderProcessId= dto.WorkOrderProcessId;
+            _id = dto.Id;
+            _workOrderProcessId = dto.WorkOrderProcessId;
             _bomItem = dto.BomItem;
             _materialCode = dto.MaterialCode;
             _materialDesc = dto.MaterialDesc;
@@ -1104,6 +1132,19 @@ namespace BizLink.MES.WinForms.Forms
             _syncWms = dto.SyncWMSStatus > 0 ? "已领料" : "未领料";
             _isPicked = string.Empty;
             _consumeTypeDesc = string.Empty;
+        }
+
+        int _id;
+        public int Id
+        {
+            get => _id;
+            set
+            {
+                if (_id == value)
+                    return;
+                _id = value;
+                OnPropertyChanged();
+            }
         }
         int _workOrderProcessId;
         public int WorkOrderProcessId

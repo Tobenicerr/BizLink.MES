@@ -14,7 +14,9 @@ namespace BizLink.MES.Application.ApiClient
         Task<ApiResponse<TResponse>> PutAsync<TRequest, TResponse>(string requestUri, TRequest data);
         Task<ApiResponse<T>> DeleteAsync<T>(string requestUri);
 
-        Task<ApiResponse<T>> PostAsync<T>(string requestUri, String jsonstr);
+        Task<ApiResponse<T>> PostAsync<T>(string requestUri, string jsonstr);
+
+        Task<TResponse> PostXmlAsync<TResponse>(string requestUri, string xmlContent);
 
         Task<ApiResponse<TResponse>> UploadFileAsync<TResponse>(string url, string filePath, Dictionary<string, string> additionalFormData = null);
 

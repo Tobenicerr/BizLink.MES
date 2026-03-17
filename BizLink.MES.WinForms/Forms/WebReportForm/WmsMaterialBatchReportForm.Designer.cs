@@ -30,6 +30,7 @@
         {
             tableLayoutPanel1 = new TableLayoutPanel();
             panel1 = new AntdUI.Panel();
+            ExportMatButton = new AntdUI.Button();
             ConsumeTypeSelect = new AntdUI.Select();
             ExportButton = new AntdUI.Button();
             SearchButton = new AntdUI.Button();
@@ -41,7 +42,6 @@
             TableControl = new AntdUI.Table();
             panel3 = new AntdUI.Panel();
             PaginationControl = new AntdUI.Pagination();
-            ExportMatButton = new AntdUI.Button();
             tableLayoutPanel1.SuspendLayout();
             panel1.SuspendLayout();
             panel2.SuspendLayout();
@@ -82,6 +82,17 @@
             panel1.TabIndex = 0;
             panel1.Text = "panel1";
             // 
+            // ExportMatButton
+            // 
+            ExportMatButton.Font = new Font("Microsoft YaHei UI", 11F);
+            ExportMatButton.Location = new Point(793, -2);
+            ExportMatButton.Name = "ExportMatButton";
+            ExportMatButton.Size = new Size(75, 45);
+            ExportMatButton.TabIndex = 6;
+            ExportMatButton.Text = "物料导出";
+            ExportMatButton.Type = AntdUI.TTypeMini.Success;
+            ExportMatButton.Click += ExportMatButton_Click;
+            // 
             // ConsumeTypeSelect
             // 
             ConsumeTypeSelect.Font = new Font("Microsoft YaHei UI", 11F);
@@ -116,6 +127,7 @@
             // 
             BatchInput.Font = new Font("Microsoft YaHei UI", 11F);
             BatchInput.Location = new Point(323, -2);
+            BatchInput.Multiline = true;
             BatchInput.Name = "BatchInput";
             BatchInput.Size = new Size(160, 45);
             BatchInput.TabIndex = 2;
@@ -124,6 +136,7 @@
             // 
             MaterialInput.Font = new Font("Microsoft YaHei UI", 11F);
             MaterialInput.Location = new Point(163, -3);
+            MaterialInput.Multiline = true;
             MaterialInput.Name = "MaterialInput";
             MaterialInput.Size = new Size(160, 45);
             MaterialInput.TabIndex = 1;
@@ -200,17 +213,6 @@
             PaginationControl.TabIndex = 0;
             PaginationControl.Text = "pagination1";
             PaginationControl.ValueChanged += PaginationControl_ValueChanged;
-            // 
-            // ExportMatButton
-            // 
-            ExportMatButton.Font = new Font("Microsoft YaHei UI", 11F);
-            ExportMatButton.Location = new Point(793, -2);
-            ExportMatButton.Name = "ExportMatButton";
-            ExportMatButton.Size = new Size(75, 45);
-            ExportMatButton.TabIndex = 6;
-            ExportMatButton.Text = "物料导出";
-            ExportMatButton.Type = AntdUI.TTypeMini.Success;
-            ExportMatButton.Click += ExportMatButton_Click;
             // 
             // WmsMaterialBatchReportForm
             // 

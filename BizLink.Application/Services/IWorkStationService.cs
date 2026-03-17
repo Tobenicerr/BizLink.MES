@@ -18,6 +18,8 @@ namespace BizLink.MES.Application.Services
 
         Task<List<WorkStationDto>> GetByWorkcenterIdAsync(int workcenterId);
 
+        Task<List<WorkStationDto>> GetListByWorkcenterIdAsync(List<int> workcenterIds);
+
         Task<List<WorkStationDto>> GetByWorkcenterGroupCodeAsync(string groupcode);
 
         Task<List<WorkStationDto>> GetAllAsync(int factoryid);

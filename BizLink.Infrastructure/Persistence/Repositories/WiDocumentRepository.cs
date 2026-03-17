@@ -16,11 +16,14 @@ namespace BizLink.MES.Infrastructure.Persistence.Repositories
         {
         }
 
-        public async Task<List<WiDocument>> GetListByMaterialCodeAsync(int factoryid, string materialcode)
+        public async Task<WiDocument> GetByDocumentNoAsync(string documentNo)
         {
-            return await _db.Queryable<WiDocument>()
-                            .Where(d => d.FactoryId == factoryid && d.MaterialCode == materialcode)
-                            .ToListAsync();
+            return await _db.Queryable<WiDocument>().Where(x => x.DocumentNo == documentNo).FirstAsync();
+        }
+
+        public async Task<List<WiDocument>> GetListByConstructionAsync(string constructionNo)
+        {
+            return await _db.Queryable<WiDocument>().Where(x => x.ConstructionNo == constructionNo).ToListAsync();
         }
     }
 }

@@ -42,6 +42,7 @@
             TableControl = new AntdUI.Table();
             panel3 = new AntdUI.Panel();
             PaginationControl = new AntdUI.Pagination();
+            ExportButton = new AntdUI.Button();
             tableLayoutPanel1.SuspendLayout();
             panel1.SuspendLayout();
             panel2.SuspendLayout();
@@ -67,6 +68,7 @@
             // 
             // panel1
             // 
+            panel1.Controls.Add(ExportButton);
             panel1.Controls.Add(keywordInput);
             panel1.Controls.Add(statusSelect);
             panel1.Controls.Add(workstationSelect);
@@ -198,7 +200,6 @@
             // PaginationControl
             // 
             PaginationControl.BackColor = Color.White;
-            PaginationControl.Current = 0;
             PaginationControl.Dock = DockStyle.Fill;
             PaginationControl.Location = new Point(0, 0);
             PaginationControl.Name = "PaginationControl";
@@ -215,6 +216,17 @@
             PaginationControl.TabIndex = 0;
             PaginationControl.Text = "pagination1";
             PaginationControl.ValueChanged += PaginationControl_ValueChanged;
+            // 
+            // ExportButton
+            // 
+            ExportButton.Font = new Font("Microsoft YaHei UI", 11F);
+            ExportButton.Location = new Point(818, 47);
+            ExportButton.Name = "ExportButton";
+            ExportButton.Size = new Size(75, 40);
+            ExportButton.TabIndex = 7;
+            ExportButton.Text = "导出";
+            ExportButton.Type = AntdUI.TTypeMini.Success;
+            ExportButton.Click += ExportButton_Click;
             // 
             // CableTaskReportForm
             // 
@@ -248,5 +260,6 @@
         private AntdUI.Input keywordInput;
         private AntdUI.Panel panel3;
         private AntdUI.Pagination PaginationControl;
+        private AntdUI.Button ExportButton;
     }
 }

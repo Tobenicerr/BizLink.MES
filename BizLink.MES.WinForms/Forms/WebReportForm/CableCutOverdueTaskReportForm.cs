@@ -18,8 +18,9 @@ namespace BizLink.MES.WinForms.Forms.WebReportForm
     public partial class CableCutOverdueTaskReportForm : MesBaseForm
     {
         private readonly IWorkOrderInProgressViewService _workOrderInProgressViewService;
-        private readonly IWorkOrderTaskService _workOrderTaskService;
-        public CableCutOverdueTaskReportForm(IWorkOrderInProgressViewService workOrderInProgressViewService, IWorkOrderTaskService workOrderTaskService)
+        //private readonly IWorkOrderTaskService _workOrderTaskService;
+        private readonly IWorkOrderMaterialTaskService _workOrderTaskService;
+        public CableCutOverdueTaskReportForm(IWorkOrderInProgressViewService workOrderInProgressViewService, IWorkOrderMaterialTaskService workOrderTaskService)
         {
             InitializeComponent();
             InitializeTable();
@@ -41,30 +42,31 @@ namespace BizLink.MES.WinForms.Forms.WebReportForm
                  
                 new AntdUI.Column("OrderNumber", "订单号", AntdUI.ColumnAlign.Center).SetWidth("auto").SetFixed().SetDefaultFilter().SetLocalizationTitleID("Table.Column."),
                 new AntdUI.Column("MaterialCode", "订单物料", AntdUI.ColumnAlign.Center).SetWidth("auto").SetFixed().SetDefaultFilter().SetLocalizationTitleID("Table.Column."),
-                new AntdUI.Column("MaterialDesc", "物料描述", AntdUI.ColumnAlign.Center).SetWidth("auto").SetLocalizationTitleID("Table.Column."),
-                new AntdUI.Column("Quantity", "订单数量(PCS)", AntdUI.ColumnAlign.Right).SetDisplayFormat("0.###").SetLocalizationTitleID("Table.Column."),
-                new AntdUI.Column("RequiredQuantity", "需求数量(M)", AntdUI.ColumnAlign.Right).SetDisplayFormat("0.###").SetLocalizationTitleID("Table.Column."),
                 new AntdUI.Column("WorkCenter", "工作中心", AntdUI.ColumnAlign.Center).SetWidth("auto").SetDefaultFilter().SetLocalizationTitleID("Table.Column."),
                 new AntdUI.Column("Status", "状态", AntdUI.ColumnAlign.Center) {
                     Render = (value, record, index) =>
                     {
                         return value as string switch
                         {
-                            "0" => new AntdUI.CellTag("未准备", AntdUI.TTypeMini.Error),
-                            "1" => new AntdUI.CellTag("已排产", AntdUI.TTypeMini.Primary),
-                            "2" => new AntdUI.CellTag("执行中", AntdUI.TTypeMini.Default),
-                            "3" => new AntdUI.CellTag("已挂起", AntdUI.TTypeMini.Success),
-                            _ => null
+                            "10" => new AntdUI.CellTag("已排产", AntdUI.TTypeMini.Error),
+                            "20" => new AntdUI.CellTag("已排产", AntdUI.TTypeMini.Error),
+                            "30" => new AntdUI.CellTag("已排产", AntdUI.TTypeMini.Error),
+                            "40" => new AntdUI.CellTag("执行中", AntdUI.TTypeMini.Primary),
+                            "45" => new AntdUI.CellTag("已挂起", AntdUI.TTypeMini.Success),
+                            _ => new AntdUI.CellTag("未同步", AntdUI.TTypeMini.Error),
                         };
                     }
                 }.SetDefaultFilter().SetLocalizationTitleID("Table.Column."),
-
-                new AntdUI.Column("StartTime", "开工日期", AntdUI.ColumnAlign.Center).SetWidth("auto").SetDefaultFilter().SetDisplayFormat("yyyy-MM-dd").SetLocalizationTitleID("Table.Column."),
-                new AntdUI.Column("DispatchDate", "装配日期", AntdUI.ColumnAlign.Center).SetDisplayFormat("yyyy-MM-dd").SetLocalizationTitleID("Table.Column."),
                 new AntdUI.Column("CableMaterial", "断线物料", AntdUI.ColumnAlign.Right).SetLocalizationTitleID("Table.Column."),
 
                 new AntdUI.Column("TaskQuantity", "断线数量(PCS)", AntdUI.ColumnAlign.Right).SetDisplayFormat("0.###").SetLocalizationTitleID("Table.Column."),
                 new AntdUI.Column("CompletedQty", "完成数量(PCS)", AntdUI.ColumnAlign.Right).SetDisplayFormat("0.###").SetLocalizationTitleID("Table.Column."),
+
+                new AntdUI.Column("StartTime", "开工日期", AntdUI.ColumnAlign.Center).SetWidth("auto").SetDefaultFilter().SetDisplayFormat("yyyy-MM-dd").SetLocalizationTitleID("Table.Column."),
+                new AntdUI.Column("DispatchDate", "装配日期", AntdUI.ColumnAlign.Center).SetDisplayFormat("yyyy-MM-dd").SetLocalizationTitleID("Table.Column."),
+                new AntdUI.Column("Quantity", "订单数量(PCS)", AntdUI.ColumnAlign.Right).SetDisplayFormat("0.###").SetLocalizationTitleID("Table.Column."),
+                new AntdUI.Column("RequiredQuantity", "需求数量(M)", AntdUI.ColumnAlign.Right).SetDisplayFormat("0.###").SetLocalizationTitleID("Table.Column."),
+                new AntdUI.Column("MaterialDesc", "订单物料", AntdUI.ColumnAlign.Center).SetWidth("auto").SetLocalizationTitleID("Table.Column."),
 
                 new AntdUI.Column("Operator", "操作人员", AntdUI.ColumnAlign.Center).SetLocalizationTitleID("Table.Column."),
                 new AntdUI.Column("OperationTime", "操作时间", AntdUI.ColumnAlign.Center).SetDisplayFormat("yyyy-MM-dd HH:mm:ss").SetLocalizationTitleID("Table.Column."),
@@ -112,10 +114,10 @@ namespace BizLink.MES.WinForms.Forms.WebReportForm
                             temp.agg.CableMaterial,
                             temp.agg.CompletedQty,
                             temp.agg.ProfitCenter,
-                            TaskQuantity = task?.Quantity??0,
-                            Operator = task?.UpdateBy??task?.CreateBy,
-                            OperationTime = task?.UpdateOn??task?.CreateOn,
-                            Remark = task?.ProductionRemark
+                            TaskQuantity = task?.TargetQuantity??0,
+                            Operator = task?.UpdateBy??task?.CreatedBy,
+                            OperationTime = task?.UpdatedOn??task?.CreatedOn,
+                            //Remark = task?.ProductionRemark
 
                         }).OrderBy(x => x.OrderNumber).OrderByDescending(x => x.StartTime).ToList();
                     return result.Count();
